@@ -244,3 +244,10 @@ Plan ("clinic core first"): Foundations (UHID, Visit, Vitals, Rx) → OPD queue/
 **API hygiene rule:** never return raw `User` rows (they carry `passwordHash`). Use `select` whitelists. Fixed in doctors, appointments, patient detail, notes, staff PATCH, clinics POST on 2026-11-07.
 
 *Last updated: 2026-11-07 (hospital slice 1, infra isolation, backups).*
+
+## Billing (added 2026-11-08)
+- Invoice numbers come from `Tenant.invoiceSeq`, incremented inside the invoice-create transaction (gap free, never resets by year). Migration `billing_core` seeded it from each clinic's highest existing number. Never go back to `count + 1`.
+- Money is computed in integer paise (`lib/hospital/billing.ts`); discount is taken off the GST-inclusive total. Confirm GST treatment with the clinic's accountant (healthcare services are generally exempt, starter price list uses 0%).
+- Payments lock the invoice row (`FOR UPDATE`), refuse overpayment, and are idempotent through `clientRef`. Invoices with payments cannot be edited or cancelled (no refunds yet).
+- `CANCELLED` invoices stay on record and are excluded from patient, dashboard and outstanding totals; any new code summing invoices must exclude them and `deletedAt`.
+- After changing the schema run `npx prisma generate` AND restart the dev server (a stale client shows up as `PrismaClientValidationError` 500s). With CI auto-deploy on push to `main`, apply prod migrations BEFORE pushing.
