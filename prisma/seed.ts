@@ -1,3 +1,5 @@
+import { CLINIC_TYPES } from "../lib/modules/clinicTypes";
+import { DEMO_CLINICS, seedDemoClinic } from "./demoClinics";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
@@ -86,6 +88,9 @@ async function main() {
       phone: "+91 80 4567 8900",
       email: "hello@sunrisephysio.in",
       address: "12/A, MG Road, Bengaluru, KA 560001",
+      clinicType: "PHYSIOTHERAPY",
+      facilityType: "CLINIC",
+      enabledModules: [...CLINIC_TYPES.PHYSIOTHERAPY.defaultModules],
     },
   });
 
@@ -360,12 +365,19 @@ async function main() {
     }
   }
 
+  // The other demo clinics (dental, general, ortho, hospital), created by the same additive generator.
+  for (const c of DEMO_CLINICS) {
+    const r = await seedDemoClinic(prisma, c);
+    console.log(`  ${r.clinic}: ${r.skipped ? "skipped" : "created"}`);
+  }
+
   console.log("Seed complete.");
   console.log("Demo logins (password Admin@123):");
   console.log("  superadmin@physiocare.io");
   console.log("  admin@sunrisephysio.in");
   console.log("  dr.arjun@sunrisephysio.in");
   console.log("  reception@sunrisephysio.in");
+  console.log("  admin@brightsmile.demo, admin@citycare.demo, admin@bonewell.demo, admin@lakeview.demo (see lib/demoAccounts.ts)");
 }
 
 main()

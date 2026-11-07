@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/guard";
 import { tenantScope } from "@/lib/scope";
 import { registerPatientSchema } from "@/lib/hospital/schemas";
 import { allocateUhid } from "@/lib/hospital/uhid";
+import { getEnabledModules } from "@/lib/modules/guard";
 
 export async function GET(req: NextRequest) {
   const { session, response } = await requireSession();
@@ -11,6 +12,8 @@ export async function GET(req: NextRequest) {
 
   const q = req.nextUrl.searchParams.get("q")?.trim();
   const scope = tenantScope(session);
+  const modules = await getEnabledModules(session);
+  const billingOn = modules.has("billing");
 
   const patients = await prisma.patient.findMany({
     where: {
@@ -26,14 +29,15 @@ export async function GET(req: NextRequest) {
         : {}),
     },
     include: {
-      invoices: { where: { status: { not: "CANCELLED" }, deletedAt: null } },
+      invoices: billingOn ? { where: { status: { not: "CANCELLED" }, deletedAt: null } } : false,
     },
     orderBy: { createdAt: "desc" },
   });
 
   const rows = patients.map((p) => {
-    const billed = p.invoices.reduce((s, i) => s + Number(i.total), 0);
-    const outstanding = p.invoices.reduce(
+    const invoices = p.invoices ?? [];
+    const billed = invoices.reduce((s, i) => s + Number(i.total), 0);
+    const outstanding = invoices.reduce(
       (s, i) => s + (Number(i.total) - Number(i.paidAmount)),
       0
     );
@@ -44,7 +48,7 @@ export async function GET(req: NextRequest) {
       uhid: p.uhid,
       createdAt: p.createdAt,
       reason: p.reason,
-      leadSource: p.leadSource,
+      leadSource: modules.has("marketing") ? p.leadSource : null,
       billed,
       outstanding,
     };

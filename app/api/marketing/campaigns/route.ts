@@ -1,3 +1,4 @@
+import { moduleGate } from "@/lib/modules/guard";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/guard";
@@ -17,6 +18,8 @@ const schema = z.object({
 export async function POST(req: NextRequest) {
   const { session, response } = await requireSession(["CLINIC_ADMIN", "STAFF"]);
   if (!session) return response!;
+  const off = await moduleGate(session, "marketing");
+  if (off) return off;
 
   const body = await req.json();
   const parsed = schema.safeParse(body);

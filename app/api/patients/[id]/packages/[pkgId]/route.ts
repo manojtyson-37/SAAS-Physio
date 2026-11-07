@@ -1,3 +1,4 @@
+import { moduleGate } from "@/lib/modules/guard";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/guard";
@@ -14,6 +15,8 @@ export async function PATCH(
 ) {
   const { session, response } = await requireSession(["CLINIC_ADMIN", "STAFF"]);
   if (!session) return response!;
+  const off = await moduleGate(session, "packages");
+  if (off) return off;
   const { pkgId } = await params;
 
   const body = await req.json();

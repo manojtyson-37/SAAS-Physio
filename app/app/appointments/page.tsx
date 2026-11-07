@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Card } from "@/components/Card";
+import { useClinic } from "@/components/ClinicContext";
 
 type Appointment = {
   id: string;
@@ -21,7 +22,9 @@ export default function AppointmentsPage() {
   const [patients, setPatients] = useState<{ id: string; name: string }[]>([]);
   const [doctors, setDoctors] = useState<{ id: string; name: string }[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ patientId: "", doctorId: "", datetime: "", durationMin: "45", notes: "" });
+  const clinic = useClinic();
+  // Empty duration means "the clinic type's usual slot length" (15 min general, 30 dental, 45 physio...).
+  const [form, setForm] = useState({ patientId: "", doctorId: "", datetime: "", durationMin: "", notes: "" });
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -47,9 +50,9 @@ export default function AppointmentsPage() {
       await fetch("/api/appointments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, durationMin: form.durationMin || clinic.appointmentMinutes }),
       });
-      setForm({ patientId: "", doctorId: "", datetime: "", durationMin: "45", notes: "" });
+      setForm({ patientId: "", doctorId: "", datetime: "", durationMin: "", notes: "" });
       setShowForm(false);
       load();
     } finally {
@@ -127,11 +130,11 @@ export default function AppointmentsPage() {
             <div>
               <label className="text-xs text-ink/60">Duration (min)</label>
               <select
-                value={form.durationMin}
+                value={form.durationMin || String(clinic.appointmentMinutes)}
                 onChange={(e) => setForm({ ...form, durationMin: e.target.value })}
                 className="mt-1 w-full rounded-lg border border-sand px-3 py-2 text-sm"
               >
-                {[30, 45, 60, 90].map((m) => (
+                {[...new Set([10, 15, 20, 30, 45, 60, 90, clinic.appointmentMinutes])].sort((a, b) => a - b).map((m) => (
                   <option key={m} value={m}>
                     {m}
                   </option>

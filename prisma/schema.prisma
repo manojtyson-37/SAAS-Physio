@@ -34,6 +34,14 @@ enum PackageStatus {
   REFUNDED
 }
 
+enum ClinicType {
+  PHYSIOTHERAPY
+  DENTAL
+  GENERAL
+  ORTHO
+  HOSPITAL
+}
+
 enum InvoiceStatus {
   PAID
   PARTIAL
@@ -94,18 +102,20 @@ enum VisitStatus {
 }
 
 model Tenant {
-  id           String       @id @default(uuid())
-  name         String
-  gstNumber    String?
-  phone        String?
-  email        String?
-  address      String?
-  facilityType FacilityType @default(CLINIC)
-  uhidPrefix   String       @default("UH")
-  uhidSeq      Int          @default(0)
-  invoiceSeq   Int          @default(0)
-  createdAt    DateTime     @default(now())
-  deletedAt    DateTime?
+  id             String       @id @default(uuid())
+  name           String
+  gstNumber      String?
+  phone          String?
+  email          String?
+  address        String?
+  facilityType   FacilityType @default(CLINIC)
+  uhidPrefix     String       @default("UH")
+  uhidSeq        Int          @default(0)
+  invoiceSeq     Int          @default(0)
+  clinicType     ClinicType   @default(PHYSIOTHERAPY)
+  enabledModules String[]     @default([])
+  createdAt      DateTime     @default(now())
+  deletedAt      DateTime?
 
   branches      Branch[]
   users         User[]

@@ -1,3 +1,4 @@
+import { moduleGate } from "@/lib/modules/guard";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/guard";
@@ -9,6 +10,8 @@ const DEPT_DIMS = ["clinicalSkills", "documentation", "knowledge", "caseManageme
 export async function GET(req: NextRequest) {
   const { session, response } = await requireSession();
   if (!session) return response!;
+  const off = await moduleGate(session, "ratings");
+  if (off) return off;
   const scope = tenantScope(session);
 
   const doctorId = req.nextUrl.searchParams.get("doctorId");

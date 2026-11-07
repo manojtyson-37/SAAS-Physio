@@ -1,3 +1,4 @@
+import { moduleGate } from "@/lib/modules/guard";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -9,6 +10,8 @@ import { istDateKey } from "@/lib/hospital/dates";
 export async function GET(req: NextRequest) {
   const g = await requireTenantSession();
   if (!g.session) return g.response;
+  const off = await moduleGate(g.session, "opd");
+  if (off) return off;
 
   const sp = req.nextUrl.searchParams;
   const date = sp.get("date") ?? istDateKey();
@@ -42,6 +45,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const g = await requireTenantSession(["CLINIC_ADMIN", "STAFF", "DOCTOR"]);
   if (!g.session) return g.response;
+  const off = await moduleGate(g.session, "opd");
+  if (off) return off;
 
   const parsed = createVisitSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {

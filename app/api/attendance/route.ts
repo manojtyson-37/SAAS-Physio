@@ -1,3 +1,4 @@
+import { moduleGate } from "@/lib/modules/guard";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/guard";
@@ -13,6 +14,8 @@ function dayRange(dateStr: string) {
 export async function GET(req: NextRequest) {
   const { session, response } = await requireSession();
   if (!session) return response!;
+  const off = await moduleGate(session, "attendance");
+  if (off) return off;
   const scope = tenantScope(session);
 
   const dateStr = req.nextUrl.searchParams.get("date") ?? new Date().toISOString().slice(0, 10);
@@ -54,6 +57,8 @@ const schema = z.object({
 export async function POST(req: NextRequest) {
   const { session, response } = await requireSession(["CLINIC_ADMIN", "STAFF"]);
   if (!session) return response!;
+  const off = await moduleGate(session, "attendance");
+  if (off) return off;
 
   const body = await req.json();
   const parsed = schema.safeParse(body);

@@ -18,6 +18,7 @@ export default function ClinicsPage() {
     adminName: "",
     adminEmail: "",
     adminPassword: "",
+    clinicType: "PHYSIOTHERAPY",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -48,7 +49,7 @@ export default function ClinicsPage() {
         return;
       }
       setShowForm(false);
-      setForm({ name: "", gstNumber: "", phone: "", email: "", address: "", adminName: "", adminEmail: "", adminPassword: "" });
+      setForm({ name: "", gstNumber: "", phone: "", email: "", address: "", adminName: "", adminEmail: "", adminPassword: "", clinicType: "PHYSIOTHERAPY" });
       load();
     } finally {
       setSaving(false);
@@ -73,6 +74,9 @@ export default function ClinicsPage() {
       {showForm && (
         <Card>
           <form onSubmit={handleAdd} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <select aria-label="Clinic type" value={form.clinicType} onChange={(e) => setForm({ ...form, clinicType: e.target.value })} className="rounded-lg border border-sand px-3 py-2 text-sm">
+              {[["PHYSIOTHERAPY", "Physiotherapy clinic"], ["DENTAL", "Dental clinic"], ["GENERAL", "General clinic"], ["ORTHO", "Orthopaedic clinic"], ["HOSPITAL", "Small hospital"]].map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
             <input required placeholder="Clinic name*" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-lg border border-sand px-3 py-2 text-sm" />
             <input placeholder="GST Number" value={form.gstNumber} onChange={(e) => setForm({ ...form, gstNumber: e.target.value })} className="rounded-lg border border-sand px-3 py-2 text-sm" />
             <input placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="rounded-lg border border-sand px-3 py-2 text-sm" />
@@ -104,6 +108,7 @@ export default function ClinicsPage() {
           <Card key={t.id}>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sand">🏢</div>
             <p className="mt-3 font-display text-lg">{t.name}</p>
+            {t.clinicTypeLabel && <p className="mt-1 inline-block rounded-full bg-sand px-2 py-0.5 text-[10px] uppercase tracking-wide text-ink/60">{t.clinicTypeLabel}</p>}
             <p className="text-xs text-ink/50">{t.address}</p>
             {t.gstNumber && <p className="text-xs text-ink/50">GSTIN: {t.gstNumber}</p>}
             <div className="mt-4 grid grid-cols-3 text-center text-sm">

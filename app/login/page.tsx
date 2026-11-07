@@ -4,13 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PulseMark } from "@/components/PulseMark";
-
-const DEMO_ACCOUNTS = [
-  { label: "Super Admin", email: "superadmin@physiocare.io" },
-  { label: "Clinic Admin", email: "admin@sunrisephysio.in" },
-  { label: "Doctor", email: "dr.arjun@sunrisephysio.in" },
-  { label: "Staff", email: "reception@sunrisephysio.in" },
-];
+import { BRAND } from "@/lib/brand";
+import { DEMO_GROUPS, DEMO_PASSWORD, SUPER_ADMIN_DEMO } from "@/lib/demoAccounts";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -49,25 +44,25 @@ export default function LoginPage() {
           <div className="flex items-center gap-2.5">
             <PulseMark className="h-9 w-9" />
             <div className="leading-tight">
-              <div className="font-display text-lg font-medium">PhysioCare</div>
+              <div className="font-display text-lg font-medium">{BRAND.name}</div>
               <div className="font-data text-[10px] uppercase tracking-[0.18em] text-cream/60">
-                Clinic OS
+                {BRAND.descriptor}
               </div>
             </div>
           </div>
           <div>
             <p className="font-data text-xs uppercase tracking-[0.2em] text-clay">
-              Multi-tenant clinic OS
+              Physio · Dental · Ortho · General · Hospital
             </p>
             <h1 className="mt-4 max-w-md font-display text-4xl font-medium leading-tight">
-              Every patient. Every payment. Every rating. One platform.
+              One platform. Switch on only the modules your clinic needs.
             </h1>
             <p className="mt-6 max-w-sm text-cream/70">
-              Sign in to manage packages, GST invoices, staff attendance and
-              doctor performance from a single workspace.
+              OPD queue, prescriptions, billing, appointments, packages and more,
+              for clinics and small hospitals of every kind.
             </p>
           </div>
-          <p className="text-xs text-cream/40">© {new Date().getFullYear()} PhysioCare</p>
+          <p className="text-xs text-cream/40">© {new Date().getFullYear()} {BRAND.name}</p>
         </div>
       </div>
 
@@ -112,24 +107,42 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-8">
-            <p className="font-data text-[10px] uppercase tracking-widest text-ink/40">
-              Demo accounts
-            </p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              {DEMO_ACCOUNTS.map((acc) => (
-                <button
-                  key={acc.email}
-                  type="button"
-                  onClick={() => {
-                    setEmail(acc.email);
-                    setPassword("Admin@123");
-                  }}
-                  className="rounded-lg border border-sand p-2.5 text-left text-xs transition hover:border-forest"
-                >
-                  <div className="font-medium">{acc.label}</div>
-                  <div className="mt-0.5 truncate text-ink/50">{acc.email}</div>
-                </button>
+            <p className="font-data text-[10px] uppercase tracking-widest text-ink/40">Demo clinics</p>
+            <p className="mt-1 text-xs text-ink/50">Pick an account to fill the form. Password for all: {DEMO_PASSWORD}</p>
+            <div className="mt-3 space-y-3">
+              {DEMO_GROUPS.map((g) => (
+                <div key={g.clinic} className="rounded-lg border border-sand p-2.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-xs font-medium">{g.clinic}</span>
+                    <span className="text-[10px] uppercase tracking-wide text-ink/40">{g.type}</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {g.accounts.map((acc) => (
+                      <button
+                        key={acc.email}
+                        type="button"
+                        onClick={() => {
+                          setEmail(acc.email);
+                          setPassword(DEMO_PASSWORD);
+                        }}
+                        className={`rounded-full border px-3 py-1 text-xs transition hover:border-forest ${email === acc.email ? "border-forest bg-forest/5 text-forest" : "border-sand text-ink/70"}`}
+                      >
+                        {acc.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail(SUPER_ADMIN_DEMO.email);
+                  setPassword(DEMO_PASSWORD);
+                }}
+                className="text-xs text-ink/50 hover:text-ink"
+              >
+                {SUPER_ADMIN_DEMO.label} →
+              </button>
             </div>
           </div>
 

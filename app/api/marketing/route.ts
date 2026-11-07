@@ -1,3 +1,4 @@
+import { moduleGate } from "@/lib/modules/guard";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/guard";
@@ -6,6 +7,8 @@ import { tenantScope } from "@/lib/scope";
 export async function GET() {
   const { session, response } = await requireSession();
   if (!session) return response!;
+  const off = await moduleGate(session, "marketing");
+  if (off) return off;
   const scope = tenantScope(session);
 
   const [campaigns, referrals] = await Promise.all([

@@ -1,3 +1,4 @@
+import { moduleGate } from "@/lib/modules/guard";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/guard";
@@ -13,6 +14,8 @@ const num = (d: { toString(): string }) => Number(d.toString());
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { session, response } = await requireSession();
   if (!session) return response!;
+  const off = await moduleGate(session, "billing");
+  if (off) return off;
   const { id } = await params;
 
   const invoice = await prisma.invoice.findFirst({
@@ -57,6 +60,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const g = await requireTenantSession(["CLINIC_ADMIN", "STAFF"]);
   if (!g.session) return g.response;
+  const off = await moduleGate(g.session, "billing");
+  if (off) return off;
   const { id } = await params;
 
   const parsed = updateInvoiceSchema.safeParse(await req.json().catch(() => null));

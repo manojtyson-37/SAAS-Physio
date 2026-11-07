@@ -1,3 +1,4 @@
+import { moduleGate } from "@/lib/modules/guard";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -17,6 +18,8 @@ const view = (s: { id: string; name: string; category: string; price: Prisma.Dec
 export async function GET(req: NextRequest) {
   const g = await requireTenantSession();
   if (!g.session) return g.response;
+  const off = await moduleGate(g.session, "billing");
+  if (off) return off;
   const all = req.nextUrl.searchParams.get("all") === "1" && g.session.role === "CLINIC_ADMIN";
 
   const services = await prisma.serviceItem.findMany({
@@ -29,6 +32,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const g = await requireTenantSession(["CLINIC_ADMIN"]);
   if (!g.session) return g.response;
+  const off = await moduleGate(g.session, "billing");
+  if (off) return off;
 
   const parsed = serviceSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {

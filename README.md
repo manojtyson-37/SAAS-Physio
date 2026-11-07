@@ -44,10 +44,30 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ## Demo Accounts
 
-Password for all: **`Admin@123`**
+Password for all: **`Admin@123`**. Five demo clinics, one per clinic type (also listed on the sign-in page):
 
-| Email | Role |
-|---|---|
+| Clinic | Type | Admin | Doctor | Reception |
+|---|---|---|---|---|
+| Sunrise Physiotherapy | Physiotherapy | `admin@sunrisephysio.in` | `dr.arjun@sunrisephysio.in` | `reception@sunrisephysio.in` |
+| BrightSmile Dental Studio | Dental | `admin@brightsmile.demo` | `dr.aditya@brightsmile.demo` | `reception@brightsmile.demo` |
+| CityCare Family Clinic | General | `admin@citycare.demo` | `dr.imran@citycare.demo` | `reception@citycare.demo` |
+| BoneWell Ortho & Joint Care | Orthopaedic | `admin@bonewell.demo` | `dr.suresh@bonewell.demo` | `reception@bonewell.demo` |
+| Lakeview Multispeciality Hospital | Small hospital | `admin@lakeview.demo` | `dr.anita@lakeview.demo` | `reception@lakeview.demo` |
+
+Platform super admin (all clinics): `superadmin@physiocare.io`.
+
+Add the demo clinics to any database without touching existing data (dry run by default):
+
+```bash
+npx tsx scripts/seed-demo-clinics.ts           # shows what would be created
+npx tsx scripts/seed-demo-clinics.ts --apply   # creates the missing ones
+```
+
+## Modules
+
+Each clinic has a type (physio, dental, general, ortho, small hospital) that sets its default modules, wording, appointment length and starter price list. The clinic admin switches modules on and off under **Settings**. The registry is `lib/modules/registry.ts`, the presets `lib/modules/clinicTypes.ts`. Switching a module off hides it (menu, pages, APIs, dashboard) and never deletes data.
+
+---|---|
 | `superadmin@physiocare.io` | Super Admin (all clinics) |
 | `admin@sunrisephysio.in` | Clinic Admin |
 | `dr.arjun@sunrisephysio.in` | Doctor |

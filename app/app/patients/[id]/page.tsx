@@ -1,5 +1,6 @@
 "use client";
 
+import { useClinic } from "@/components/ClinicContext";
 import { useEffect, useState, useCallback, use } from "react";
 import Link from "next/link";
 import { Card } from "@/components/Card";
@@ -14,7 +15,8 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
   const { id } = use(params);
   const [patient, setPatient] = useState<any>(null);
   const [tab, setTab] = useState<Tab>("overview");
-  const [pkgForm, setPkgForm] = useState({ name: "10 Session Package", totalSessions: "10", price: "8000" });
+  const clinic = useClinic();
+  const [pkgForm, setPkgForm] = useState<{ name: string | null; totalSessions: string; price: string }>({ name: null, totalSessions: "10", price: "8000" });
   const [noteForm, setNoteForm] = useState("");
 
   const load = useCallback(async () => {
@@ -34,9 +36,9 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
     await fetch(`/api/patients/${id}/packages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(pkgForm),
+      body: JSON.stringify({ ...pkgForm, name: pkgForm.name ?? clinic.terms.package }),
     });
-    setPkgForm({ name: "", totalSessions: "", price: "" });
+    setPkgForm({ name: null, totalSessions: "10", price: "" });
     load();
   }
 
@@ -61,12 +63,13 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
     load();
   }
 
+  const has = (m: string) => clinic.modules.includes(m);
   const tabs: { key: Tab; label: string }[] = [
     { key: "overview", label: "Overview" },
-    { key: "packages", label: `Packages (${patient.packages.length})` },
+    ...(has("packages") ? [{ key: "packages" as Tab, label: `${clinic.terms.packages} (${patient.packages.length})` }] : []),
     { key: "notes", label: `Clinical Notes (${patient.clinicalNotes.length})` },
-    { key: "invoices", label: `Invoices (${patient.invoices.length})` },
-    { key: "appointments", label: `Appointments (${patient.appointments.length})` },
+    ...(has("billing") ? [{ key: "invoices" as Tab, label: `Invoices (${patient.invoices.length})` }] : []),
+    ...(has("appointments") ? [{ key: "appointments" as Tab, label: `Appointments (${patient.appointments.length})` }] : []),
   ];
 
   return (
@@ -227,12 +230,12 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
             </Card>
           ))}
           <Card>
-            <p className="font-data text-[10px] uppercase tracking-widest text-ink/40">New package</p>
+            <p className="font-data text-[10px] uppercase tracking-widest text-ink/40">New {clinic.terms.package.toLowerCase()}</p>
             <form onSubmit={addPackage} className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-4">
               <input
                 required
-                placeholder="Package name"
-                value={pkgForm.name}
+                placeholder={`${clinic.terms.package} name`}
+                value={pkgForm.name ?? clinic.terms.package}
                 onChange={(e) => setPkgForm({ ...pkgForm, name: e.target.value })}
                 className="rounded-lg border border-sand px-3 py-2 text-sm"
               />

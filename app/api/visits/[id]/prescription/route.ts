@@ -1,3 +1,4 @@
+import { moduleGate } from "@/lib/modules/guard";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireTenantSession } from "@/lib/hospital/guard";
@@ -11,6 +12,8 @@ import { isOpen, VisitStatusName } from "@/lib/hospital/visit";
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const g = await requireTenantSession(["CLINIC_ADMIN", "DOCTOR"]);
   if (!g.session) return g.response;
+  const off = await moduleGate(g.session, "opd");
+  if (off) return off;
   const { id } = await params;
 
   const parsed = prescriptionSchema.safeParse(await req.json().catch(() => null));

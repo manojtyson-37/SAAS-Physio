@@ -1,3 +1,4 @@
+import { moduleGate } from "@/lib/modules/guard";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -15,6 +16,8 @@ const STATUSES = ["PAID", "PARTIAL", "UNPAID", "CANCELLED"] as const;
 export async function GET(req: NextRequest) {
   const { session, response } = await requireSession();
   if (!session) return response!;
+  const off = await moduleGate(session, "billing");
+  if (off) return off;
   const sp = req.nextUrl.searchParams;
 
   const where: Prisma.InvoiceWhereInput = { ...tenantScope(session), deletedAt: null };
@@ -66,6 +69,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const g = await requireTenantSession(["CLINIC_ADMIN", "STAFF"]);
   if (!g.session) return g.response;
+  const off = await moduleGate(g.session, "billing");
+  if (off) return off;
 
   const parsed = createInvoiceSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {

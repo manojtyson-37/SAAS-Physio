@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/guard";
 import { tenantScope } from "@/lib/scope";
 import { registerPatientSchema } from "@/lib/hospital/schemas";
+import { getEnabledModules } from "@/lib/modules/guard";
 
 export async function GET(
   req: NextRequest,
@@ -12,6 +13,7 @@ export async function GET(
   if (!session) return response!;
   const { id } = await params;
   const scope = tenantScope(session);
+  const modules = await getEnabledModules(session);
 
   const patient = await prisma.patient.findFirst({
     where: { id, ...scope },
@@ -26,15 +28,20 @@ export async function GET(
   if (!patient) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // Cancelled invoices stay in the list but never count towards what was billed or paid.
-  const live = patient.invoices.filter((i) => i.status !== "CANCELLED" && !i.deletedAt);
+  // Data of a module that is switched off is not returned, so "off" means off in the API too.
+  const invoices = modules.has("billing") ? patient.invoices : [];
+  const packages = modules.has("packages") ? patient.packages : [];
+  const appointments = modules.has("appointments") ? patient.appointments : [];
+  const live = invoices.filter((i) => i.status !== "CANCELLED" && !i.deletedAt);
   const billed = live.reduce((s, i) => s + Number(i.total), 0);
   const paid = live.reduce((s, i) => s + Number(i.paidAmount), 0);
 
   return NextResponse.json({
     patient: {
       ...patient,
-      packages: patient.packages.map((p) => ({ ...p, price: Number(p.price) })),
-      invoices: patient.invoices.map((i) => ({
+      packages: packages.map((p) => ({ ...p, price: Number(p.price) })),
+      appointments,
+      invoices: invoices.map((i) => ({
         ...i,
         subtotal: Number(i.subtotal),
         gst: Number(i.gst),

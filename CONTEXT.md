@@ -251,3 +251,11 @@ Plan ("clinic core first"): Foundations (UHID, Visit, Vitals, Rx) → OPD queue/
 - Payments lock the invoice row (`FOR UPDATE`), refuse overpayment, and are idempotent through `clientRef`. Invoices with payments cannot be edited or cancelled (no refunds yet).
 - `CANCELLED` invoices stay on record and are excluded from patient, dashboard and outstanding totals; any new code summing invoices must exclude them and `deletedAt`.
 - After changing the schema run `npx prisma generate` AND restart the dev server (a stale client shows up as `PrismaClientValidationError` 500s). With CI auto-deploy on push to `main`, apply prod migrations BEFORE pushing.
+
+## Modules and clinic types (added 2026-11-08)
+- `Tenant.clinicType` (PHYSIOTHERAPY, DENTAL, GENERAL, ORTHO, HOSPITAL) and `Tenant.enabledModules` (text[]). Registry: `lib/modules/registry.ts` (module keys, nav, page prefixes, planned modules); presets: `lib/modules/clinicTypes.ts`. Existing clinics were backfilled with every module, so nothing disappeared.
+- Enforcement is three layers: sidebar (`getNavItems(role, modules)`), pages (a `layout.tsx` per module calling `assertModulePage`, 404 when off), APIs (`moduleGate(session, key)` at the top of every handler). Dashboard computes a section only for enabled modules. When adding a module: registry entry, a layout for its pages, `moduleGate` in each API handler, and add it to the presets.
+- Core areas (dashboard, patients, staff, settings) are never gated. SUPER_ADMIN has no clinic and passes every gate.
+- Brand name lives in `lib/brand.ts` (one-line rename). The session cookie name `physiocare_session` is intentionally unchanged (renaming would log everyone out).
+- Demo clinics: `prisma/demoClinics.ts`, added with `scripts/seed-demo-clinics.ts` (additive, idempotent, dry-run by default). The wiping `prisma/seed.ts` also creates them. Logins in `lib/demoAccounts.ts` and README.
+- Dashboard "today" is the India calendar day (`istDayRange`), not the server timezone.

@@ -1,3 +1,4 @@
+import { CLINIC_TYPES, CLINIC_TYPE_KEYS, type ClinicTypeKey } from "@/lib/modules/clinicTypes";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/guard";
@@ -26,6 +27,8 @@ export async function GET() {
       branchCount: t.branches.length,
       staffCount: t.users.length,
       patientCount: t.patients.length,
+      clinicType: t.clinicType,
+      clinicTypeLabel: CLINIC_TYPES[t.clinicType as ClinicTypeKey]?.label ?? t.clinicType,
       createdAt: t.createdAt,
     })),
   });
@@ -40,6 +43,7 @@ const schema = z.object({
   adminName: z.string().min(1),
   adminEmail: z.string().email(),
   adminPassword: z.string().min(6),
+  clinicType: z.enum(CLINIC_TYPE_KEYS as [ClinicTypeKey, ...ClinicTypeKey[]]).default("PHYSIOTHERAPY"),
 });
 
 export async function POST(req: NextRequest) {
@@ -53,7 +57,8 @@ export async function POST(req: NextRequest) {
   const existing = await prisma.user.findUnique({ where: { email: parsed.data.adminEmail } });
   if (existing) return NextResponse.json({ error: "Admin email already in use" }, { status: 409 });
 
-  const { adminName, adminEmail, adminPassword, ...tenantData } = parsed.data;
+  const { adminName, adminEmail, adminPassword, clinicType, ...tenantData } = parsed.data;
+  const preset = CLINIC_TYPES[clinicType];
 
   const tenant = await prisma.tenant.create({
     data: {
@@ -62,6 +67,9 @@ export async function POST(req: NextRequest) {
       phone: tenantData.phone,
       email: tenantData.email || undefined,
       address: tenantData.address,
+      clinicType,
+      facilityType: preset.facility,
+      enabledModules: [...preset.defaultModules],
       users: {
         create: {
           name: adminName,

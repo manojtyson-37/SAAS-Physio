@@ -1,3 +1,4 @@
+import { moduleGate } from "@/lib/modules/guard";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/guard";
@@ -15,6 +16,8 @@ export async function POST(
 ) {
   const { session, response } = await requireSession(["CLINIC_ADMIN", "STAFF"]);
   if (!session) return response!;
+  const off = await moduleGate(session, "packages");
+  if (off) return off;
   const { id } = await params;
 
   const body = await req.json();

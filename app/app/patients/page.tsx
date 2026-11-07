@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Card } from "@/components/Card";
+import { useHasModule } from "@/components/ClinicContext";
 
 type Patient = {
   id: string;
@@ -29,6 +30,7 @@ const LEAD_LABELS: Record<string, string> = {
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
 export default function PatientsPage() {
+  const billingOn = useHasModule("billing");
   const [patients, setPatients] = useState<Patient[] | null>(null);
   const [q, setQ] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -200,8 +202,8 @@ export default function PatientsPage() {
               <th className="px-6 py-3">Joined</th>
               <th className="px-6 py-3">Reason</th>
               <th className="px-6 py-3">Lead</th>
-              <th className="px-6 py-3">Billed</th>
-              <th className="px-6 py-3">Outstanding</th>
+              {billingOn && <th className="px-6 py-3">Billed</th>}
+              {billingOn && <th className="px-6 py-3">Outstanding</th>}
             </tr>
           </thead>
           <tbody>
@@ -224,14 +226,16 @@ export default function PatientsPage() {
                 <td className="px-6 py-3 text-ink/70">
                   {p.leadSource ? LEAD_LABELS[p.leadSource] : "—"}
                 </td>
-                <td className="px-6 py-3 font-data">{inr(p.billed)}</td>
-                <td className="px-6 py-3 font-data">
-                  {p.outstanding > 0 ? (
-                    <span className="text-clay">{inr(p.outstanding)}</span>
-                  ) : (
-                    <span className="text-forest">Cleared</span>
-                  )}
-                </td>
+                {billingOn && <td className="px-6 py-3 font-data">{inr(p.billed)}</td>}
+                {billingOn && (
+                  <td className="px-6 py-3 font-data">
+                    {p.outstanding > 0 ? (
+                      <span className="text-clay">{inr(p.outstanding)}</span>
+                    ) : (
+                      <span className="text-forest">Cleared</span>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

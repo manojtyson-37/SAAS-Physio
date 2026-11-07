@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { PulseMark } from "@/components/PulseMark";
 import { NavItem } from "@/lib/nav";
+import { BRAND } from "@/lib/brand";
+import { useClinic } from "@/components/ClinicContext";
 
 export function Sidebar({
   items,
@@ -14,6 +16,7 @@ export function Sidebar({
   userName: string;
   roleLabel: string;
 }) {
+  const clinic = useClinic();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -28,9 +31,9 @@ export function Sidebar({
       <div className="flex items-center gap-2 px-2">
         <PulseMark className="h-8 w-8" />
         <div className="leading-tight">
-          <div className="font-display text-base font-medium">PhysioCare</div>
+          <div className="font-display text-base font-medium">{BRAND.name}</div>
           <div className="font-data text-[9px] uppercase tracking-[0.18em] text-sage">
-            Clinic OS
+            {clinic.clinicTypeLabel}
           </div>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { BRAND } from "@/lib/brand";
 import type { Metadata } from "next";
 import { Fraunces, Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
@@ -22,9 +23,8 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PhysioCare — Clinic OS for modern physiotherapy practices",
-  description:
-    "The multi-tenant operating system for modern physiotherapy practices. Patients, packages, GST billing, doctor performance and marketing ROI — one dashboard.",
+  title: `${BRAND.name} — ${BRAND.tagline}`,
+  description: BRAND.description,
 };
 
 export default function RootLayout({

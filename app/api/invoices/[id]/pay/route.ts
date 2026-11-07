@@ -1,3 +1,4 @@
+import { moduleGate } from "@/lib/modules/guard";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireTenantSession } from "@/lib/hospital/guard";
@@ -8,6 +9,8 @@ import { HttpError, toErrorResponse } from "@/lib/hospital/http";
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const g = await requireTenantSession(["CLINIC_ADMIN", "STAFF"]);
   if (!g.session) return g.response;
+  const off = await moduleGate(g.session, "billing");
+  if (off) return off;
   const { id } = await params;
 
   const parsed = paymentSchema.safeParse(await req.json().catch(() => null));

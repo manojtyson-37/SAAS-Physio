@@ -1,3 +1,4 @@
+import { moduleGate } from "@/lib/modules/guard";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -8,6 +9,8 @@ import { updateServiceSchema } from "@/lib/hospital/billingSchemas";
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const g = await requireTenantSession(["CLINIC_ADMIN"]);
   if (!g.session) return g.response;
+  const off = await moduleGate(g.session, "billing");
+  if (off) return off;
   const { id } = await params;
 
   const parsed = updateServiceSchema.safeParse(await req.json().catch(() => null));
