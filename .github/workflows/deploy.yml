@@ -34,4 +34,10 @@ jobs:
       - name: Deploy
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: npx --yes vercel@54.20.1 deploy --prod --yes --scope kbdcreditsolutions-projects
+        # Vercel's build sometimes fails once fetching Google Fonts; an identical retry then succeeds.
+        run: |
+          for attempt in 1 2; do
+            npx --yes vercel@54.20.1 deploy --prod --yes --scope kbdcreditsolutions-projects && exit 0
+            echo "Deploy attempt $attempt failed"; sleep 15
+          done
+          exit 1
