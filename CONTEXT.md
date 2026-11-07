@@ -6,11 +6,10 @@
 
 ## 1. What This Project Is
 
-**PhysioCare Clinic OS** — a multi-tenant SaaS platform for physiotherapy clinics. It manages patients, appointments, GST invoices, staff attendance, doctor performance ratings, and marketing campaigns.
+**PhysioCare Clinic OS** — a multi-tenant SaaS platform for clinics and hospitals (started as physiotherapy). It manages patients (UHID), appointments, OPD visits with token queue, vitals, prescriptions, GST invoices, staff attendance, doctor ratings, and marketing campaigns. Hospital modules are being added in slices; see section 14.
 
-- **Live URL:** https://saas-physio.vercel.app
-- **GitHub:** https://github.com/kbdcreditsolutions/SAAS-Physio
-- **Team:** kbdcreditsolutions-projects on Vercel
+- **Vercel project:** `physiocare-platform` (team kbdcreditsolutions-projects), https://physiocare-platform.vercel.app. This folder is linked to it.
+- **GitHub:** `manojtyson-37/SAAS-Physio` (branch `main`) is the new repo. The old `kbdcreditsolutions/SAAS-Physio` (master) and old Vercel project `saas-physio` are legacy; `saas-physio` is still attached to the SDPC shared DB. Do not deploy to it.
 
 ## 2. Tech Stack
 
@@ -80,12 +79,11 @@ middleware.ts  (Edge runtime — only jose allowed)
 
 ## 5. Database Setup — Neon + Prisma
 
-### Neon Project Details
-- **Project name:** neon-cinereous-lens
-- **Project ID:** silent-forest-23150019
-- **Org:** org-blue-poetry-93504632
-- **Endpoint:** `ep-nameless-meadow-at954vlp.c-9.us-east-1.aws.neon.tech`
-- **Region:** us-east-1
+### Databases (as of 2026-11-07)
+- **DO NOT USE** `neon-cinereous-lens` (`ep-nameless-meadow-at954vlp…`): shared with SDPC production. This project's env was removed from it on 2026-10-28 after a data-loss incident (see AGENTS.md).
+- **Production:** Vercel-Marketplace Neon store `neon-carmine-zebra` (`ep-dawn-night-b8yilwdk…`, us-east-1) attached to `physiocare-platform`. Treat as live. Daily dumps go to the Blob store `physiocare-platform-db-backups`. Pull env with `vercel env pull .env.production.pulled --environment production` (gitignored).
+- **Dev:** Neon project `saas-physio-hospital` (`polished-bread-96164092`, ap-southeast-1, org "Manoj"), in local `.env`. Daily 02:00 launchd job runs `scripts/backup-db.sh` to `~/Backups/saas-physio/`. Safe to seed/reset.
+- Postgres is 18.x: use `postgresql@18` client tools (`/opt/homebrew/opt/postgresql@18/bin`) for pg_dump/psql.
 
 ### Critical: Neon uses PgBouncer connection pooling
 
@@ -110,7 +108,7 @@ If `directUrl` is missing, `prisma migrate deploy` will fail or behave unpredict
 ```bash
 npx prisma generate         # regenerate client after schema changes
 npx prisma migrate deploy   # apply pending migrations to Neon
-npm run seed                # seed demo data (idempotent-ish)
+SEED_CONFIRM_WIPE=<db host> npm run seed   # WIPES ALL TABLES; refuses to run without the exact host (dev DB only!)
 ```
 
 ### Prisma schema location: `prisma/schema.prisma`
@@ -130,7 +128,7 @@ npm run seed                # seed demo data (idempotent-ish)
 ```env
 DATABASE_URL="postgresql://neondb_owner:PASSWORD@ep-nameless-meadow-at954vlp-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 DATABASE_URL_UNPOOLED="postgresql://neondb_owner:PASSWORD@ep-nameless-meadow-at954vlp.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-JWT_SECRET="REDACTED-rotated"
+JWT_SECRET="<generate with: openssl rand -hex 32>"
 ```
 
 ---
@@ -162,6 +160,7 @@ The app is multi-tenant. Key scoping rules:
 `Patient` → `Package`, `Invoice`, `Appointment`, `ClinicalNote`, `AttendanceRecord`  
 `Invoice` → `InvoiceLineItem`, `Payment`  
 `Doctor (User)` → `Appointment` → `ClinicalNote`, `Rating`
+Hospital core: `Patient` → `Visit` (token per tenant per IST day) → `Vitals[]`, `Prescription` (1:1) → `PrescriptionItem[]`. `Tenant.facilityType` (CLINIC|HOSPITAL), `Tenant.uhidPrefix/uhidSeq` drive UHID allocation.
 
 ---
 
@@ -174,6 +173,8 @@ The app is multi-tenant. Key scoping rules:
 /app/patients         → Patient list + add
 /app/patients/[id]    → Patient detail (notes, packages, invoices)
 /app/appointments     → Appointment calendar/list
+/app/opd              → OPD token queue (today), issue tokens
+/app/opd/[id]         → Visit workspace: vitals, consultation, prescription, print
 /app/invoices         → Invoice list
 /app/invoices/[id]    → Invoice detail + payment
 /app/staff            → Staff management
@@ -222,9 +223,24 @@ This is a warning only — `middleware.ts` still works. Migration to `proxy.ts` 
 npm run dev       # start dev server (Turbopack)
 npm run build     # production build
 npm run lint      # ESLint
-npm run seed      # seed demo data to DB (tsx prisma/seed.ts)
+SEED_CONFIRM_WIPE=<db host> npm run seed   # destructive; dev DB only
+npm test          # vitest unit tests (lib/**/*.test.ts)
 ```
 
 ---
 
-*Last updated: 2026-07-06 by AI agent after fixing Vercel login bug and setting up Neon database.*
+## 14. Hospital build (started 2026-11-07)
+
+Plan ("clinic core first"): Foundations (UHID, Visit, Vitals, Rx) → OPD queue/EMR → billing upgrade → Pharmacy + Inventory → Lab + Radiology → IPD/ICU/Discharge → Speech-to-Rx / tablet writing.
+
+**Slice 1 (built, dev-verified, NOT yet migrated to production):**
+- Migration `20261107130000_hospital_core_visit_vitals_rx` is additive only (new tables; nullable/defaulted columns on Patient and Tenant). Apply to prod only after the user approves the exact `prisma migrate deploy` command.
+- UHID: `lib/hospital/uhid.ts`, one atomic `UPDATE uhidSeq+1`; gaps possible, duplicates not. Existing patients have `uhid = NULL` until a (guarded) backfill is approved.
+- Tokens: `app/api/visits/route.ts`, per-tenant per-IST-day, serialized by `pg_advisory_xact_lock`, unique constraint as backstop.
+- Prescription: generic name required (NMC rule); one Rx per visit; locked once the visit is COMPLETED/CANCELLED.
+- Roles: STAFF registers, issues tokens and records vitals; DOCTOR/CLINIC_ADMIN consult, diagnose, prescribe, complete. SUPER_ADMIN (no tenant) is blocked from clinical routes.
+- Tests: `npm test` (unit), plus the e2e script approach used in the session (API-level, against the dev DB only).
+
+**API hygiene rule:** never return raw `User` rows (they carry `passwordHash`). Use `select` whitelists. Fixed in doctors, appointments, patient detail, notes, staff PATCH, clinics POST on 2026-11-07.
+
+*Last updated: 2026-11-07 (hospital slice 1, infra isolation, backups).*

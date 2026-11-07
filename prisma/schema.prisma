@@ -74,33 +74,57 @@ enum RatingType {
   DEPT_HEAD
 }
 
-model Tenant {
-  id         String   @id @default(uuid())
-  name       String
-  gstNumber  String?
-  phone      String?
-  email      String?
-  address    String?
-  createdAt  DateTime @default(now())
-  deletedAt  DateTime?
+enum FacilityType {
+  CLINIC
+  HOSPITAL
+}
 
-  branches     Branch[]
-  users        User[]
-  patients     Patient[]
-  invoices     Invoice[]
-  appointments Appointment[]
-  attendance   AttendanceRecord[]
-  campaigns    Campaign[]
-  referrals    Referral[]
-  ratings      Rating[]
-  auditLogs    AuditLog[]
-  packages     Package[]
+enum VisitType {
+  OPD
+  IPD
+  EMERGENCY
+}
+
+enum VisitStatus {
+  WAITING
+  IN_CONSULT
+  COMPLETED
+  CANCELLED
+}
+
+model Tenant {
+  id           String       @id @default(uuid())
+  name         String
+  gstNumber    String?
+  phone        String?
+  email        String?
+  address      String?
+  facilityType FacilityType @default(CLINIC)
+  uhidPrefix   String       @default("UH")
+  uhidSeq      Int          @default(0)
+  createdAt    DateTime     @default(now())
+  deletedAt    DateTime?
+
+  branches      Branch[]
+  users         User[]
+  patients      Patient[]
+  invoices      Invoice[]
+  appointments  Appointment[]
+  attendance    AttendanceRecord[]
+  campaigns     Campaign[]
+  referrals     Referral[]
+  ratings       Rating[]
+  auditLogs     AuditLog[]
+  packages      Package[]
+  visits        Visit[]
+  vitals        Vitals[]
+  prescriptions Prescription[]
 }
 
 model Branch {
-  id       String @id @default(uuid())
+  id       String  @id @default(uuid())
   tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenant   Tenant  @relation(fields: [tenantId], references: [id])
   name     String
   city     String?
 
@@ -127,19 +151,22 @@ model User {
   createdAt    DateTime  @default(now())
   deletedAt    DateTime?
 
-  appointments   Appointment[] @relation("DoctorAppointments")
+  appointments   Appointment[]      @relation("DoctorAppointments")
   clinicalNotes  ClinicalNote[]
   attendance     AttendanceRecord[]
   ratingsGiven   Rating[]           @relation("RatingDoctor")
   auditLogs      AuditLog[]
+  doctorVisits   Visit[]            @relation("DoctorVisits")
+  vitalsRecorded Vitals[]
+  prescriptions  Prescription[]
 }
 
 model Patient {
-  id             String     @id @default(uuid())
+  id             String      @id @default(uuid())
   tenantId       String
-  tenant         Tenant     @relation(fields: [tenantId], references: [id])
+  tenant         Tenant      @relation(fields: [tenantId], references: [id])
   branchId       String?
-  branch         Branch?    @relation(fields: [branchId], references: [id])
+  branch         Branch?     @relation(fields: [branchId], references: [id])
   name           String
   phone          String
   gender         String?
@@ -148,48 +175,58 @@ model Patient {
   leadSource     LeadSource?
   referralDoctor String?
   notes          String?
-  createdAt      DateTime   @default(now())
+  uhid           String?
+  dob            DateTime?
+  bloodGroup     String?
+  allergies      String?
+  abhaId         String?
+  createdAt      DateTime    @default(now())
   deletedAt      DateTime?
 
-  packages     Package[]
-  invoices     Invoice[]
-  appointments Appointment[]
+  packages      Package[]
+  invoices      Invoice[]
+  appointments  Appointment[]
   clinicalNotes ClinicalNote[]
-  attendance   AttendanceRecord[]
+  attendance    AttendanceRecord[]
+  visits        Visit[]
+  vitals        Vitals[]
+  prescriptions Prescription[]
+
+  @@unique([tenantId, uhid])
 }
 
 model Package {
-  id             String        @id @default(uuid())
-  tenantId       String
-  tenant         Tenant        @relation(fields: [tenantId], references: [id])
-  patientId      String
-  patient        Patient       @relation(fields: [patientId], references: [id])
-  name           String
-  totalSessions  Int
-  usedSessions   Int           @default(0)
-  price          Decimal       @db.Decimal(10, 2)
-  status         PackageStatus @default(ACTIVE)
-  startDate      DateTime      @default(now())
-  endDate        DateTime?
-  createdAt      DateTime      @default(now())
-  deletedAt      DateTime?
+  id            String        @id @default(uuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  patientId     String
+  patient       Patient       @relation(fields: [patientId], references: [id])
+  name          String
+  totalSessions Int
+  usedSessions  Int           @default(0)
+  price         Decimal       @db.Decimal(10, 2)
+  status        PackageStatus @default(ACTIVE)
+  startDate     DateTime      @default(now())
+  endDate       DateTime?
+  createdAt     DateTime      @default(now())
+  deletedAt     DateTime?
 }
 
 model Invoice {
-  id          String        @id @default(uuid())
-  tenantId    String
-  tenant      Tenant        @relation(fields: [tenantId], references: [id])
-  patientId   String
-  patient     Patient       @relation(fields: [patientId], references: [id])
-  number      String
-  date        DateTime      @default(now())
-  subtotal    Decimal       @db.Decimal(10, 2)
-  gst         Decimal       @db.Decimal(10, 2)
-  total       Decimal       @db.Decimal(10, 2)
-  paidAmount  Decimal       @default(0) @db.Decimal(10, 2)
-  status      InvoiceStatus @default(UNPAID)
-  createdAt   DateTime      @default(now())
-  deletedAt   DateTime?
+  id         String        @id @default(uuid())
+  tenantId   String
+  tenant     Tenant        @relation(fields: [tenantId], references: [id])
+  patientId  String
+  patient    Patient       @relation(fields: [patientId], references: [id])
+  number     String
+  date       DateTime      @default(now())
+  subtotal   Decimal       @db.Decimal(10, 2)
+  gst        Decimal       @db.Decimal(10, 2)
+  total      Decimal       @db.Decimal(10, 2)
+  paidAmount Decimal       @default(0) @db.Decimal(10, 2)
+  status     InvoiceStatus @default(UNPAID)
+  createdAt  DateTime      @default(now())
+  deletedAt  DateTime?
 
   lineItems InvoiceLineItem[]
   payments  Payment[]
@@ -204,7 +241,7 @@ model InvoiceLineItem {
   description String
   qty         Int
   unitPrice   Decimal @db.Decimal(10, 2)
-  gstPercent  Decimal @db.Decimal(5, 2) @default(18)
+  gstPercent  Decimal @default(18) @db.Decimal(5, 2)
   lineTotal   Decimal @db.Decimal(10, 2)
 }
 
@@ -218,23 +255,24 @@ model Payment {
 }
 
 model Appointment {
-  id         String            @id @default(uuid())
-  tenantId   String
-  tenant     Tenant            @relation(fields: [tenantId], references: [id])
-  branchId   String?
-  branch     Branch?           @relation(fields: [branchId], references: [id])
-  patientId  String
-  patient    Patient           @relation(fields: [patientId], references: [id])
-  doctorId   String
-  doctor     User              @relation("DoctorAppointments", fields: [doctorId], references: [id])
-  datetime   DateTime
-  durationMin Int              @default(45)
-  notes      String?
-  status     AppointmentStatus @default(SCHEDULED)
-  createdAt  DateTime          @default(now())
-  deletedAt  DateTime?
+  id          String            @id @default(uuid())
+  tenantId    String
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+  branchId    String?
+  branch      Branch?           @relation(fields: [branchId], references: [id])
+  patientId   String
+  patient     Patient           @relation(fields: [patientId], references: [id])
+  doctorId    String
+  doctor      User              @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  datetime    DateTime
+  durationMin Int               @default(45)
+  notes       String?
+  status      AppointmentStatus @default(SCHEDULED)
+  createdAt   DateTime          @default(now())
+  deletedAt   DateTime?
 
   clinicalNotes ClinicalNote[]
+  visits        Visit[]
 }
 
 model ClinicalNote {
@@ -254,7 +292,7 @@ model AttendanceRecord {
   id        String            @id @default(uuid())
   tenantId  String
   tenant    Tenant            @relation(fields: [tenantId], references: [id])
-  date      DateTime           @db.Date
+  date      DateTime          @db.Date
   subject   AttendanceSubject
   userId    String?
   user      User?             @relation(fields: [userId], references: [id])
@@ -318,4 +356,101 @@ model AuditLog {
   entityId  String
   diff      Json?
   timestamp DateTime @default(now())
+}
+
+// ── Hospital core (slice 1): visit/encounter, vitals, prescription ──────────
+
+/// One patient visit (OPD/IPD/Emergency). Mirrors the OpenMRS visit→encounter idea.
+model Visit {
+  id             String       @id @default(uuid())
+  tenantId       String
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+  branchId       String?
+  patientId      String
+  patient        Patient      @relation(fields: [patientId], references: [id])
+  doctorId       String
+  doctor         User         @relation("DoctorVisits", fields: [doctorId], references: [id])
+  appointmentId  String?
+  appointment    Appointment? @relation(fields: [appointmentId], references: [id])
+  type           VisitType    @default(OPD)
+  status         VisitStatus  @default(WAITING)
+  /// Calendar day of the visit in IST (YYYY-MM-DD); token numbers restart each day.
+  tokenDate      String
+  tokenNumber    Int
+  chiefComplaint String?
+  diagnosis      String?
+  advice         String?
+  followUpDate   DateTime?
+  startedAt      DateTime?
+  endedAt        DateTime?
+  createdAt      DateTime     @default(now())
+  deletedAt      DateTime?
+
+  vitals       Vitals[]
+  prescription Prescription?
+
+  @@unique([tenantId, tokenDate, tokenNumber])
+  @@index([tenantId, tokenDate, status])
+  @@index([patientId])
+}
+
+model Vitals {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  visitId      String
+  visit        Visit    @relation(fields: [visitId], references: [id])
+  patientId    String
+  patient      Patient  @relation(fields: [patientId], references: [id])
+  recordedById String
+  recordedBy   User     @relation(fields: [recordedById], references: [id])
+  systolic     Int?
+  diastolic    Int?
+  pulse        Int?
+  respRate     Int?
+  spo2         Int?
+  tempC        Decimal? @db.Decimal(4, 1)
+  weightKg     Decimal? @db.Decimal(5, 1)
+  heightCm     Decimal? @db.Decimal(5, 1)
+  bmi          Decimal? @db.Decimal(4, 1)
+  notes        String?
+  recordedAt   DateTime @default(now())
+
+  @@index([visitId])
+}
+
+/// One prescription per visit (v1). Generic name is required (NMC generic-prescribing rule).
+model Prescription {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  visitId   String   @unique
+  visit     Visit    @relation(fields: [visitId], references: [id])
+  patientId String
+  patient   Patient  @relation(fields: [patientId], references: [id])
+  doctorId  String
+  doctor    User     @relation(fields: [doctorId], references: [id])
+  notes     String?
+  createdAt DateTime @default(now())
+
+  items PrescriptionItem[]
+}
+
+model PrescriptionItem {
+  id             String       @id @default(uuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  sortOrder      Int          @default(0)
+  genericName    String
+  brandName      String?
+  form           String?
+  strength       String?
+  dose           String?
+  /// e.g. "1-0-1" (morning-afternoon-night) or "SOS"
+  frequency      String
+  durationDays   Int?
+  route          String?
+  instructions   String?
+
+  @@index([prescriptionId])
 }

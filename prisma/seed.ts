@@ -24,10 +24,41 @@ function phone() {
   return `+91${randInt(9000000000, 9999999999)}`;
 }
 
+/**
+ * This seed WIPES every table before inserting demo data. It once destroyed real
+ * patient data (2026-10-27), so it refuses to run unless the operator confirms the
+ * exact target host: SEED_CONFIRM_WIPE=<db host> npm run seed
+ */
+async function guardWipe() {
+  const host = new URL(process.env.DATABASE_URL ?? "postgresql://missing").hostname;
+  const counts = {
+    tenants: await prisma.tenant.count(),
+    users: await prisma.user.count(),
+    patients: await prisma.patient.count(),
+    appointments: await prisma.appointment.count(),
+    invoices: await prisma.invoice.count(),
+    visits: await prisma.visit.count(),
+    vitals: await prisma.vitals.count(),
+    prescriptions: await prisma.prescription.count(),
+  };
+  console.log(`Seed target host: ${host}`);
+  console.log(`Rows that will be DELETED: ${JSON.stringify(counts)}`);
+  if (process.env.SEED_CONFIRM_WIPE !== host) {
+    console.error(`ABORTED: set SEED_CONFIRM_WIPE=${host} to confirm you intend to wipe this database.`);
+    process.exit(1);
+  }
+}
+
 async function main() {
   console.log("Seeding PhysioCare demo clinic…");
+  await guardWipe();
 
   await prisma.auditLog.deleteMany();
+  // Hospital tables first: their FKs to Patient/User/Tenant are RESTRICT.
+  await prisma.prescriptionItem.deleteMany();
+  await prisma.prescription.deleteMany();
+  await prisma.vitals.deleteMany();
+  await prisma.visit.deleteMany();
   await prisma.rating.deleteMany();
   await prisma.referral.deleteMany();
   await prisma.campaign.deleteMany();

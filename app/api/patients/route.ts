@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/guard";
 import { tenantScope } from "@/lib/scope";
-import { z } from "zod";
+import { registerPatientSchema } from "@/lib/hospital/schemas";
+import { allocateUhid } from "@/lib/hospital/uhid";
 
 export async function GET(req: NextRequest) {
   const { session, response } = await requireSession();
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
             OR: [
               { name: { contains: q, mode: "insensitive" } },
               { phone: { contains: q } },
+              { uhid: { contains: q, mode: "insensitive" } },
             ],
           }
         : {}),
@@ -39,6 +41,7 @@ export async function GET(req: NextRequest) {
       id: p.id,
       name: p.name,
       phone: p.phone,
+      uhid: p.uhid,
       createdAt: p.createdAt,
       reason: p.reason,
       leadSource: p.leadSource,
@@ -50,42 +53,25 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ patients: rows });
 }
 
-const createSchema = z.object({
-  name: z.string().min(1),
-  phone: z.string().min(1),
-  gender: z.string().optional(),
-  reason: z.string().optional(),
-  leadSource: z
-    .enum(["DIRECT", "REFERRAL", "GOOGLE", "FACEBOOK", "WALK_IN", "WHATSAPP", "INSTAGRAM"])
-    .optional(),
-  referralDoctor: z.string().optional(),
-  address: z.string().optional(),
-  notes: z.string().optional(),
-});
-
 export async function POST(req: NextRequest) {
   const { session, response } = await requireSession(["CLINIC_ADMIN", "STAFF"]);
   if (!session) return response!;
 
-  const body = await req.json();
-  const parsed = createSchema.safeParse(body);
+  const parsed = registerPatientSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
   }
 
-  const patient = await prisma.patient.create({
-    data: { ...parsed.data, tenantId: session.tenantId! },
-  });
-
-  await prisma.auditLog.create({
-    data: {
-      tenantId: session.tenantId,
-      actorId: session.userId,
-      action: "CREATE",
-      entity: "Patient",
-      entityId: patient.id,
-    },
-  });
+  const tenantId = session.tenantId!;
+  const uhid = await allocateUhid(prisma, tenantId);
+  const patientId = crypto.randomUUID();
+  // Batch (non-interactive) transaction: the patient and its audit row commit together.
+  const [patient] = await prisma.$transaction([
+    prisma.patient.create({ data: { ...parsed.data, id: patientId, uhid, tenantId } }),
+    prisma.auditLog.create({
+      data: { tenantId, actorId: session.userId, action: "CREATE", entity: "Patient", entityId: patientId },
+    }),
+  ]);
 
   return NextResponse.json({ patient });
 }

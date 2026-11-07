@@ -9,7 +9,9 @@ export async function GET() {
   const scope = tenantScope(session);
 
   const doctors = await prisma.user.findMany({
-    where: { ...scope, role: "DOCTOR", isActive: true },
+    where: { ...scope, role: "DOCTOR", isActive: true, deletedAt: null },
+    // Whitelist: never return the full User row (it carries passwordHash).
+    select: { id: true, name: true, specialty: true, title: true },
     orderBy: { name: "asc" },
   });
 

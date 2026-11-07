@@ -11,7 +11,7 @@ export async function GET() {
 
   const appointments = await prisma.appointment.findMany({
     where: scope,
-    include: { patient: true, doctor: true },
+    include: { patient: true, doctor: { select: { id: true, name: true, specialty: true, title: true } } },
     orderBy: { datetime: "asc" },
   });
 
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       durationMin: parsed.data.durationMin,
       notes: parsed.data.notes,
     },
-    include: { patient: true, doctor: true },
+    include: { patient: true, doctor: { select: { id: true, name: true, specialty: true, title: true } } },
   });
 
   return NextResponse.json({ appointment: appt });

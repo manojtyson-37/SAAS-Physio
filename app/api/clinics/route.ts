@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
         },
       },
     },
-    include: { users: true },
+    include: { users: { select: { id: true, name: true, email: true, role: true } } },
   });
 
   return NextResponse.json({ tenant });

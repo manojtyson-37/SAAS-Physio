@@ -11,6 +11,7 @@ export function getNavItems(role: string): NavItem[] {
 
   base.push(
     { label: "Patients", href: "/app/patients" },
+    { label: "OPD Queue", href: "/app/opd" },
     { label: "Appointments", href: "/app/appointments" },
     { label: "Billing", href: "/app/invoices" },
     { label: "Staff & Doctors", href: "/app/staff" },

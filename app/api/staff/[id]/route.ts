@@ -20,6 +20,10 @@ export async function PATCH(
   const user = await prisma.user.findFirst({ where: { id, tenantId: session.tenantId! } });
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const updated = await prisma.user.update({ where: { id }, data: { isActive: parsed.data.isActive } });
+  const updated = await prisma.user.update({
+    where: { id },
+    data: { isActive: parsed.data.isActive },
+    select: { id: true, name: true, email: true, role: true, specialty: true, isActive: true },
+  });
   return NextResponse.json({ user: updated });
 }

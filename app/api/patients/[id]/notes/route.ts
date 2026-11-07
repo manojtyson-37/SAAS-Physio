@@ -19,7 +19,7 @@ export async function POST(
 
   const note = await prisma.clinicalNote.create({
     data: { patientId: id, authorId: session.userId, note: parsed.data.note },
-    include: { author: true },
+    include: { author: { select: { id: true, name: true, title: true } } },
   });
 
   return NextResponse.json({ note });
