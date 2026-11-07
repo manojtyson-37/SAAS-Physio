@@ -4,6 +4,8 @@ export function TopBar({ userFirstName }: { userFirstName: string }) {
     day: "2-digit",
     month: "long",
     year: "numeric",
+    // The server runs in UTC; clinics are in India, so show the India calendar day.
+    timeZone: "Asia/Kolkata",
   });
 
   return (
