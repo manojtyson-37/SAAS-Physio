@@ -14,6 +14,7 @@ export function getNavItems(role: string): NavItem[] {
     { label: "OPD Queue", href: "/app/opd" },
     { label: "Appointments", href: "/app/appointments" },
     { label: "Billing", href: "/app/invoices" },
+    ...(role === "CLINIC_ADMIN" ? [{ label: "Price List", href: "/app/services" }] : []),
     { label: "Staff & Doctors", href: "/app/staff" },
     { label: "Attendance", href: "/app/attendance" },
     { label: "Marketing", href: "/app/marketing" },

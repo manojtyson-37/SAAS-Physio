@@ -17,7 +17,7 @@ export async function GET(
     where: { id, ...scope },
     include: {
       packages: { orderBy: { createdAt: "desc" } },
-      invoices: { orderBy: { date: "desc" } },
+      invoices: { where: { deletedAt: null }, orderBy: { date: "desc" } },
       appointments: { include: { doctor: { select: { id: true, name: true, specialty: true, title: true } } }, orderBy: { datetime: "desc" } },
       clinicalNotes: { include: { author: { select: { id: true, name: true, title: true } } }, orderBy: { date: "desc" } },
     },
@@ -25,8 +25,10 @@ export async function GET(
 
   if (!patient) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const billed = patient.invoices.reduce((s, i) => s + Number(i.total), 0);
-  const paid = patient.invoices.reduce((s, i) => s + Number(i.paidAmount), 0);
+  // Cancelled invoices stay in the list but never count towards what was billed or paid.
+  const live = patient.invoices.filter((i) => i.status !== "CANCELLED" && !i.deletedAt);
+  const billed = live.reduce((s, i) => s + Number(i.total), 0);
+  const paid = live.reduce((s, i) => s + Number(i.paidAmount), 0);
 
   return NextResponse.json({
     patient: {

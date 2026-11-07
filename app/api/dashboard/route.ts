@@ -41,7 +41,7 @@ export async function GET() {
     prisma.payment.findMany({
       where: { date: { gte: today0, lte: today1 }, invoice: { ...scope } },
     }),
-    prisma.invoice.findMany({ where: scope }),
+    prisma.invoice.findMany({ where: { ...scope, status: { not: "CANCELLED" }, deletedAt: null } }),
     prisma.patient.count({ where: scope }),
     prisma.user.count({ where: { ...scope, role: "DOCTOR", isActive: true } }),
     prisma.user.count({ where: { ...scope, role: "STAFF", isActive: true } }),
@@ -64,7 +64,7 @@ export async function GET() {
     }),
     prisma.branch.findMany({
       where: scope,
-      include: { patients: { include: { invoices: true } } },
+      include: { patients: { include: { invoices: { where: { status: { not: "CANCELLED" }, deletedAt: null } } } } },
     }),
   ]);
 

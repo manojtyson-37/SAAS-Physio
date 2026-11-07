@@ -3,164 +3,124 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Card } from "@/components/Card";
+import { inr } from "@/components/billing/InvoiceForm";
+import { statusClass } from "@/components/billing/status";
 
 type Invoice = {
   id: string;
   number: string;
   date: string;
-  patient: { id: string; name: string };
-  subtotal: number;
-  gst: number;
+  patient: { id: string; name: string; uhid: string | null };
   total: number;
+  paidAmount: number;
   balance: number;
   status: string;
 };
+type Report = {
+  date: string;
+  collected: number;
+  byMethod: { method: string; amount: number; count: number }[];
+  billed: number;
+  invoiceCount: number;
+  outstanding: number;
+  openInvoices: number;
+};
 
-type LineItemForm = { description: string; qty: string; unitPrice: string; gstPercent: string };
-
-const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
+const TABS = [
+  { key: "", label: "All" },
+  { key: "UNPAID", label: "Unpaid" },
+  { key: "PARTIAL", label: "Partial" },
+  { key: "PAID", label: "Paid" },
+  { key: "CANCELLED", label: "Cancelled" },
+];
+
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[] | null>(null);
-  const [patients, setPatients] = useState<{ id: string; name: string }[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [patientId, setPatientId] = useState("");
-  const [items, setItems] = useState<LineItemForm[]>([
-    { description: "Consultation", qty: "1", unitPrice: "800", gstPercent: "18" },
-  ]);
-  const [saving, setSaving] = useState(false);
+  const [report, setReport] = useState<Report | null>(null);
+  const [status, setStatus] = useState("");
+  const [q, setQ] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/invoices");
-    const data = await res.json();
-    setInvoices(data.invoices);
-  }, []);
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    if (q.trim()) params.set("q", q.trim());
+    const res = await fetch(`/api/invoices?${params}`);
+    if (!res.ok) return setError("Could not load invoices");
+    setError(null);
+    setInvoices((await res.json()).invoices);
+  }, [status, q]);
 
   useEffect(() => {
-    load();
-    fetch("/api/patients")
-      .then((r) => r.json())
-      .then((d) => setPatients(d.patients));
-  }, [load]);
+    const t = setTimeout(load, q ? 250 : 0);
+    return () => clearTimeout(t);
+  }, [load, q]);
 
-  function updateItem(i: number, key: keyof LineItemForm, value: string) {
-    setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, [key]: value } : it)));
-  }
-
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await fetch("/api/invoices", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ patientId, lineItems: items }),
-      });
-      setShowForm(false);
-      setItems([{ description: "Consultation", qty: "1", unitPrice: "800", gstPercent: "18" }]);
-      setPatientId("");
-      load();
-    } finally {
-      setSaving(false);
-    }
-  }
+  useEffect(() => {
+    // Doctors are not allowed to see the cash report; the card simply stays hidden for them.
+    fetch("/api/invoices/report")
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setReport);
+  }, []);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-3xl">Billing &amp; GST Invoices</h1>
-          <p className="mt-1 text-sm text-ink/60">{invoices?.length ?? 0} invoices</p>
+          <h1 className="font-display text-3xl">Billing</h1>
+          <p className="mt-1 text-sm text-ink/60">{invoices?.length ?? 0} invoices shown</p>
         </div>
-        <button
-          onClick={() => setShowForm((s) => !s)}
-          className="rounded-full bg-forest px-5 py-2 text-sm font-medium text-cream hover:bg-forest-deep"
-        >
-          + New Invoice
-        </button>
+        <Link href="/app/invoices/new" className="rounded-full bg-forest px-5 py-2 text-sm font-medium text-cream hover:bg-forest-deep">
+          + New invoice
+        </Link>
       </div>
 
-      {showForm && (
-        <Card>
-          <form onSubmit={handleCreate} className="space-y-4">
-            <div>
-              <label className="text-xs text-ink/60">Patient*</label>
-              <select
-                required
-                value={patientId}
-                onChange={(e) => setPatientId(e.target.value)}
-                className="mt-1 w-full max-w-sm rounded-lg border border-sand px-3 py-2 text-sm"
-              >
-                <option value="">— select —</option>
-                {patients.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              {items.map((it, i) => (
-                <div key={i} className="grid grid-cols-4 gap-2">
-                  <input
-                    placeholder="Description"
-                    value={it.description}
-                    onChange={(e) => updateItem(i, "description", e.target.value)}
-                    className="rounded-lg border border-sand px-3 py-2 text-sm"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Qty"
-                    value={it.qty}
-                    onChange={(e) => updateItem(i, "qty", e.target.value)}
-                    className="rounded-lg border border-sand px-3 py-2 text-sm"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Unit price"
-                    value={it.unitPrice}
-                    onChange={(e) => updateItem(i, "unitPrice", e.target.value)}
-                    className="rounded-lg border border-sand px-3 py-2 text-sm"
-                  />
-                  <input
-                    type="number"
-                    placeholder="GST %"
-                    value={it.gstPercent}
-                    onChange={(e) => updateItem(i, "gstPercent", e.target.value)}
-                    className="rounded-lg border border-sand px-3 py-2 text-sm"
-                  />
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() =>
-                  setItems((p) => [...p, { description: "", qty: "1", unitPrice: "0", gstPercent: "18" }])
-                }
-                className="text-xs text-forest hover:underline"
-              >
-                + Add line item
-              </button>
-            </div>
-            <div className="flex gap-3">
-              <button
-                disabled={saving}
-                className="rounded-lg bg-forest px-5 py-2 text-sm font-medium text-cream hover:bg-forest-deep disabled:opacity-60"
-              >
-                {saving ? "Creating…" : "Create invoice"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="rounded-lg px-5 py-2 text-sm text-ink/60 hover:bg-sand/60"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </Card>
+      {report && (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Card>
+            <p className="text-[10px] uppercase tracking-widest text-ink/40">Collected today</p>
+            <p className="mt-1 font-display text-2xl">{inr(report.collected)}</p>
+            <p className="mt-1 text-xs text-ink/50">
+              {report.byMethod.length
+                ? report.byMethod.map((m) => `${m.method} ${inr(m.amount)}`).join(" · ")
+                : "No payments yet"}
+            </p>
+          </Card>
+          <Card>
+            <p className="text-[10px] uppercase tracking-widest text-ink/40">Billed today</p>
+            <p className="mt-1 font-display text-2xl">{inr(report.billed)}</p>
+            <p className="mt-1 text-xs text-ink/50">{report.invoiceCount} invoices</p>
+          </Card>
+          <Card>
+            <p className="text-[10px] uppercase tracking-widest text-ink/40">Outstanding dues</p>
+            <p className="mt-1 font-display text-2xl">{inr(report.outstanding)}</p>
+            <p className="mt-1 text-xs text-ink/50">{report.openInvoices} open invoices</p>
+          </Card>
+        </div>
       )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setStatus(t.key)}
+            className={`rounded-full px-3 py-1 text-xs ${status === t.key ? "bg-forest text-cream" : "bg-sand/60 text-ink/70 hover:bg-sand"}`}
+          >
+            {t.label}
+          </button>
+        ))}
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search invoice #, patient or UHID"
+          className="ml-auto w-full rounded-lg border border-sand px-3 py-1.5 text-sm sm:w-72"
+        />
+      </div>
+
+      {error && <p role="alert" className="text-sm text-clay">{error}</p>}
 
       <Card className="overflow-x-auto p-0">
         <table className="w-full text-sm">
@@ -169,8 +129,6 @@ export default function InvoicesPage() {
               <th className="px-6 py-3">Invoice #</th>
               <th className="px-6 py-3">Patient</th>
               <th className="px-6 py-3">Date</th>
-              <th className="px-6 py-3">Subtotal</th>
-              <th className="px-6 py-3">GST</th>
               <th className="px-6 py-3">Total</th>
               <th className="px-6 py-3">Balance</th>
               <th className="px-6 py-3">Status</th>
@@ -180,31 +138,23 @@ export default function InvoicesPage() {
             {invoices?.map((inv) => (
               <tr key={inv.id} className="border-b border-sand/60 last:border-0 hover:bg-sand/20">
                 <td className="px-6 py-3">
-                  <Link href={`/app/invoices/${inv.id}`} className="font-data hover:text-forest">
-                    {inv.number}
-                  </Link>
+                  <Link href={`/app/invoices/${inv.id}`} className="font-data hover:text-forest">{inv.number}</Link>
                 </td>
-                <td className="px-6 py-3">{inv.patient.name}</td>
-                <td className="px-6 py-3 text-ink/70">{fmtDate(inv.date)}</td>
-                <td className="px-6 py-3 font-data">{inr(inv.subtotal)}</td>
-                <td className="px-6 py-3 font-data">{inr(inv.gst)}</td>
-                <td className="px-6 py-3 font-data font-medium">{inr(inv.total)}</td>
-                <td className="px-6 py-3 font-data">{inv.balance > 0 ? inr(inv.balance) : "₹0"}</td>
                 <td className="px-6 py-3">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${
-                      inv.status === "PAID"
-                        ? "bg-forest/10 text-forest"
-                        : inv.status === "PARTIAL"
-                        ? "bg-clay-light text-clay"
-                        : "bg-sand text-ink/60"
-                    }`}
-                  >
-                    {inv.status.toLowerCase()}
-                  </span>
+                  {inv.patient.name}
+                  {inv.patient.uhid && <span className="ml-2 font-data text-xs text-ink/40">{inv.patient.uhid}</span>}
+                </td>
+                <td className="px-6 py-3 text-ink/70">{fmtDate(inv.date)}</td>
+                <td className="px-6 py-3 font-data font-medium">{inr(inv.total)}</td>
+                <td className="px-6 py-3 font-data">{inr(inv.balance)}</td>
+                <td className="px-6 py-3">
+                  <span className={`rounded-full px-2 py-0.5 text-xs ${statusClass(inv.status)}`}>{inv.status.toLowerCase()}</span>
                 </td>
               </tr>
             ))}
+            {invoices?.length === 0 && (
+              <tr><td colSpan={6} className="px-6 py-8 text-center text-ink/50">No invoices match.</td></tr>
+            )}
           </tbody>
         </table>
       </Card>

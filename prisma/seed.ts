@@ -40,6 +40,8 @@ async function guardWipe() {
     visits: await prisma.visit.count(),
     vitals: await prisma.vitals.count(),
     prescriptions: await prisma.prescription.count(),
+    serviceItems: await prisma.serviceItem.count(),
+    payments: await prisma.payment.count(),
   };
   console.log(`Seed target host: ${host}`);
   console.log(`Rows that will be DELETED: ${JSON.stringify(counts)}`);
@@ -69,6 +71,7 @@ async function main() {
   await prisma.invoice.deleteMany();
   await prisma.appointment.deleteMany();
   await prisma.package.deleteMany();
+  await prisma.serviceItem.deleteMany();
   await prisma.patient.deleteMany();
   await prisma.user.deleteMany();
   await prisma.branch.deleteMany();
@@ -244,6 +247,20 @@ async function main() {
       }
     }
   }
+
+  // The app allocates invoice numbers from this counter; start it after the seeded ones.
+  await prisma.tenant.update({ where: { id: tenant.id }, data: { invoiceSeq: invoiceSeq - 1 } });
+
+  // Demo price list (GST 0%: healthcare services are generally exempt; editable per item).
+  await prisma.serviceItem.createMany({
+    data: [
+      { name: "Consultation", category: "Consultation", price: "500.00" },
+      { name: "Follow-up consultation", category: "Consultation", price: "300.00" },
+      { name: "Physiotherapy session", category: "Therapy", price: "800.00" },
+      { name: "Ultrasound therapy", category: "Therapy", price: "400.00" },
+      { name: "Dry needling", category: "Procedure", price: "600.00" },
+    ].map((x) => ({ ...x, tenantId: tenant.id, gstPercent: "0.00" })),
+  });
 
   // Attendance for today
   const allStaff = await prisma.user.findMany({ where: { tenantId: tenant.id, isActive: true } });

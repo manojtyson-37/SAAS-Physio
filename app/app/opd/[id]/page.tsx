@@ -1,5 +1,6 @@
 "use client";
 
+import VisitBilling from "@/components/billing/VisitBilling";
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { Card } from "@/components/Card";
@@ -248,6 +249,8 @@ export default function VisitPage({ params }: { params: Promise<{ id: string }> 
       )}
       {msg && <p className={`text-sm ${msg.ok ? "text-forest" : "text-clay"}`}>{msg.text}</p>}
       {!open && <p className="rounded-xl bg-sand/50 px-4 py-3 text-sm text-ink/60">This visit is {visit.status.toLowerCase()}. Records are read-only.</p>}
+
+      <VisitBilling visitId={visit.id} patientId={p.id} role={role} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>

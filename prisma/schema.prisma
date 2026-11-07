@@ -38,6 +38,7 @@ enum InvoiceStatus {
   PAID
   PARTIAL
   UNPAID
+  CANCELLED
 }
 
 enum AppointmentStatus {
@@ -102,6 +103,7 @@ model Tenant {
   facilityType FacilityType @default(CLINIC)
   uhidPrefix   String       @default("UH")
   uhidSeq      Int          @default(0)
+  invoiceSeq   Int          @default(0)
   createdAt    DateTime     @default(now())
   deletedAt    DateTime?
 
@@ -119,6 +121,7 @@ model Tenant {
   visits        Visit[]
   vitals        Vitals[]
   prescriptions Prescription[]
+  serviceItems  ServiceItem[]
 }
 
 model Branch {
@@ -151,14 +154,16 @@ model User {
   createdAt    DateTime  @default(now())
   deletedAt    DateTime?
 
-  appointments   Appointment[]      @relation("DoctorAppointments")
-  clinicalNotes  ClinicalNote[]
-  attendance     AttendanceRecord[]
-  ratingsGiven   Rating[]           @relation("RatingDoctor")
-  auditLogs      AuditLog[]
-  doctorVisits   Visit[]            @relation("DoctorVisits")
-  vitalsRecorded Vitals[]
-  prescriptions  Prescription[]
+  appointments     Appointment[]      @relation("DoctorAppointments")
+  clinicalNotes    ClinicalNote[]
+  attendance       AttendanceRecord[]
+  ratingsGiven     Rating[]           @relation("RatingDoctor")
+  auditLogs        AuditLog[]
+  doctorVisits     Visit[]            @relation("DoctorVisits")
+  vitalsRecorded   Vitals[]
+  prescriptions    Prescription[]
+  invoicesCreated  Invoice[]          @relation("InvoiceCreatedBy")
+  paymentsReceived Payment[]          @relation("PaymentReceivedBy")
 }
 
 model Patient {
@@ -228,10 +233,21 @@ model Invoice {
   createdAt  DateTime      @default(now())
   deletedAt  DateTime?
 
+  visitId      String?
+  visit        Visit?    @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  discount     Decimal   @default(0) @db.Decimal(10, 2)
+  notes        String?
+  cancelledAt  DateTime?
+  cancelReason String?
+  createdById  String?
+  createdBy    User?     @relation("InvoiceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
   lineItems InvoiceLineItem[]
   payments  Payment[]
 
   @@unique([tenantId, number])
+  @@index([tenantId, status])
+  @@index([visitId])
 }
 
 model InvoiceLineItem {
@@ -243,6 +259,7 @@ model InvoiceLineItem {
   unitPrice   Decimal @db.Decimal(10, 2)
   gstPercent  Decimal @default(18) @db.Decimal(5, 2)
   lineTotal   Decimal @db.Decimal(10, 2)
+  sortOrder   Int     @default(0)
 }
 
 model Payment {
@@ -252,6 +269,27 @@ model Payment {
   method    String
   amount    Decimal  @db.Decimal(10, 2)
   date      DateTime @default(now())
+
+  reference    String?
+  clientRef    String?
+  receivedById String?
+  receivedBy   User?   @relation("PaymentReceivedBy", fields: [receivedById], references: [id], onDelete: SetNull)
+
+  @@unique([invoiceId, clientRef])
+}
+
+model ServiceItem {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  name       String
+  category   String   @default("Consultation")
+  price      Decimal  @db.Decimal(10, 2)
+  gstPercent Decimal  @default(0) @db.Decimal(5, 2)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@unique([tenantId, name])
 }
 
 model Appointment {
@@ -388,6 +426,7 @@ model Visit {
 
   vitals       Vitals[]
   prescription Prescription?
+  invoices     Invoice[]
 
   @@unique([tenantId, tokenDate, tokenNumber])
   @@index([tenantId, tokenDate, status])

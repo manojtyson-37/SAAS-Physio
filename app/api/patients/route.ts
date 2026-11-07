@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
         : {}),
     },
     include: {
-      invoices: true,
+      invoices: { where: { status: { not: "CANCELLED" }, deletedAt: null } },
     },
     orderBy: { createdAt: "desc" },
   });
