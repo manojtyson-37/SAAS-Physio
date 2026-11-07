@@ -32,4 +32,6 @@ jobs:
       - name: Unit tests
         run: npm test
       - name: Deploy
-        run: npx --yes vercel@54.20.1 deploy --prod --yes --token "${{ secrets.VERCEL_TOKEN }}" --scope kbdcreditsolutions-projects
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx --yes vercel@54.20.1 deploy --prod --yes --scope kbdcreditsolutions-projects
