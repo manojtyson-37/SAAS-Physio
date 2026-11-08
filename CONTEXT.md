@@ -8,7 +8,7 @@
 
 **PhysioCare Clinic OS** — a multi-tenant SaaS platform for clinics and hospitals (started as physiotherapy). It manages patients (UHID), appointments, OPD visits with token queue, vitals, prescriptions, GST invoices, staff attendance, doctor ratings, and marketing campaigns. Hospital modules are being added in slices; see section 14.
 
-- **Vercel project:** `physiocare-platform` (team kbdcreditsolutions-projects), https://physiocare-platform.vercel.app. This folder is linked to it.
+- **Vercel project:** `physiocare-platform` (team kbdcreditsolutions-projects), https://clinicos-cloud.vercel.app (public/pitch URL, added 2026-11-08; `clinicos.vercel.app` is taken by someone else). The original https://physiocare-platform.vercel.app still works. This folder is linked to it. Use the clinicos-cloud URL in demos and links.
 - **GitHub:** `manojtyson-37/SAAS-Physio` (branch `main`) is the new repo. The old `kbdcreditsolutions/SAAS-Physio` (master) and old Vercel project `saas-physio` are legacy; `saas-physio` is still attached to the SDPC shared DB. Do not deploy to it.
 
 ## 2. Tech Stack
