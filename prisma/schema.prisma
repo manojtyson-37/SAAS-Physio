@@ -203,6 +203,8 @@ model User {
   isActive           Boolean   @default(true)
   /// Set for temporary passwords handed out by the platform team: the user must choose their own first.
   mustChangePassword Boolean   @default(false)
+  /// Sessions issued before this moment are no longer valid (set whenever the password changes).
+  passwordChangedAt  DateTime?
   createdAt          DateTime  @default(now())
   deletedAt          DateTime?
 

@@ -7,7 +7,7 @@ import { z } from "zod";
 const DUMMY_HASH = "$2b$10$4eCXQsVtsp6MhVqqrhzKkeJodc7KaasiuRmzKIlc2dRBLpzRzVY8u";
 
 const schema = z.object({
-  email: z.string().email(),
+  email: z.string().email().max(120),
   password: z.string().min(1),
 });
 
@@ -22,10 +22,15 @@ export async function POST(req: NextRequest) {
     const email = parsed.data.email.trim().toLowerCase();
     const { password } = parsed.data;
 
-    // Throttle guessing: after 10 failed attempts for an address in 15 minutes, refuse (also protects the platform logins).
+    // Throttle guessing without letting a stranger lock someone out: 8 failures per 15 minutes from one address for one
+    // login, or 40 from anywhere for one login (a distributed attack).
+    const ip = (req.headers.get("x-forwarded-for") ?? "unknown").split(",")[0].trim().slice(0, 45);
     const since = new Date(Date.now() - 15 * 60 * 1000);
-    const failures = await prisma.auditLog.count({ where: { action: "LOGIN_FAILED", entity: "Login", entityId: email, timestamp: { gte: since } } });
-    if (failures >= 10) {
+    const [byIp, byEmail] = await Promise.all([
+      prisma.auditLog.count({ where: { action: "LOGIN_FAILED", entity: "LoginIp", entityId: `${ip}|${email}`, timestamp: { gte: since } } }),
+      prisma.auditLog.count({ where: { action: "LOGIN_FAILED", entity: "Login", entityId: email, timestamp: { gte: since } } }),
+    ]);
+    if (byIp >= 8 || byEmail >= 40) {
       return NextResponse.json({ error: "Too many attempts. Try again in 15 minutes." }, { status: 429 });
     }
 
@@ -33,7 +38,10 @@ export async function POST(req: NextRequest) {
     // Always run one bcrypt comparison so an unknown address takes as long as a wrong password.
     const ok = await verifyPassword(password, user?.passwordHash ?? DUMMY_HASH);
     if (!user || !user.isActive || user.deletedAt || !ok) {
-      await prisma.auditLog.create({ data: { action: "LOGIN_FAILED", entity: "Login", entityId: email.slice(0, 200) } }).catch(() => {});
+      await prisma.auditLog.createMany({ data: [
+        { action: "LOGIN_FAILED", entity: "Login", entityId: email },
+        { action: "LOGIN_FAILED", entity: "LoginIp", entityId: `${ip}|${email}` },
+      ] }).catch(() => {});
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
     if (user.role === "SUPER_ADMIN" || user.role === "ONBOARDING") {

@@ -11,10 +11,10 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const temp = generateTempPassword();
   const hash = await hashPassword(temp);
   const n = await prisma.$transaction(async (tx) => {
-    const r = await tx.user.updateMany({ where: { id, role: "ONBOARDING", tenantId: null, deletedAt: null }, data: { passwordHash: hash, mustChangePassword: true } });
+    const r = await tx.user.updateMany({ where: { id, role: "ONBOARDING", tenantId: null, deletedAt: null }, data: { passwordHash: hash, mustChangePassword: true, passwordChangedAt: new Date() } });
     if (r.count === 1) await tx.auditLog.create({ data: { actorId: g.session.userId, action: "RESET", entity: "PlatformUser", entityId: id } });
     return r.count;
   });
   if (n !== 1) return NextResponse.json({ error: "Onboarding login not found" }, { status: 404 });
-  return NextResponse.json({ tempPassword: temp });
+  return NextResponse.json({ tempPassword: temp }, { headers: { "Cache-Control": "no-store" } });
 }

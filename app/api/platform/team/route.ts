@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { platformGate } from "@/lib/platform/gate";
@@ -32,5 +33,5 @@ export async function POST(req: NextRequest) {
     await tx.auditLog.create({ data: { actorId: g.session.userId, action: "CREATE", entity: "PlatformUser", entityId: u.id, diff: { role: "ONBOARDING" } } });
     return u;
   });
-  return NextResponse.json({ user, tempPassword: temp }, { status: 201 });
+  return NextResponse.json({ user, tempPassword: temp }, { status: 201, headers: { "Cache-Control": "no-store" } });
 }

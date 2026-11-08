@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { TopBar } from "@/components/TopBar";
 import { ClinicProvider } from "@/components/ClinicContext";
 import { prisma } from "@/lib/db";
+import { sessionPredatesPasswordChange } from "@/lib/auth";
 import { getEnabledModules } from "@/lib/modules/guard";
 import { clinicTypeDef } from "@/lib/modules/clinicTypes";
 import { AccessEnded, ForcePasswordChange } from "@/components/account/AccountGates";
@@ -18,9 +19,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Re-read the user and clinic: a signed cookie alone must not keep a deactivated user or a suspended clinic inside.
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { isActive: true, deletedAt: true, mustChangePassword: true, tenantId: true, role: true },
+    select: { isActive: true, deletedAt: true, mustChangePassword: true, passwordChangedAt: true, tenantId: true, role: true },
   });
-  if (!user || !user.isActive || user.deletedAt || user.role !== session.role || user.tenantId !== session.tenantId) {
+  if (!user || !user.isActive || user.deletedAt || user.role !== session.role || user.tenantId !== session.tenantId || sessionPredatesPasswordChange(session, user.passwordChangedAt)) {
     return <AccessEnded title="Access ended" body="This login is no longer active. Please contact your clinic admin." />;
   }
   if (user.mustChangePassword) return <ForcePasswordChange />;

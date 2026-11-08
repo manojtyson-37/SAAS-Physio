@@ -12,7 +12,7 @@ const body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("set_plan"), plan: z.string() }),
   z.object({ action: z.literal("activate"), plan: z.string(), paidThrough: z.string().optional().nullable() }),
   z.object({ action: z.literal("suspend"), note: z.string().max(300).optional() }),
-  z.object({ action: z.literal("reactivate"), note: z.string().max(300).optional() }),
+  z.object({ action: z.literal("reactivate"), to: z.enum(["TRIAL", "ACTIVE"]).optional(), note: z.string().max(300).optional() }),
   z.object({ action: z.literal("cancel"), note: z.string().max(300).optional() }),
 ]);
 

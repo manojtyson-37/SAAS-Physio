@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { CLINIC_TYPE_KEYS, CLINIC_TYPES, type ClinicTypeKey } from "@/lib/modules/clinicTypes";
@@ -63,8 +64,9 @@ export async function POST(req: NextRequest) {
       await tx.auditLog.create({ data: { tenantId: t.id, actorId: g.session.userId, action: "CREATE", entity: "Clinic", entityId: t.id, diff: { clinicType: d.clinicType, trialDays: d.trialDays } } });
       return t;
     });
-    return NextResponse.json({ clinic: tenant, admin: { name: d.adminName, email: adminEmail }, tempPassword: temp }, { status: 201 });
+    return NextResponse.json({ clinic: tenant, admin: { name: d.adminName, email: adminEmail }, tempPassword: temp }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return NextResponse.json({ error: "That admin email is already in use" }, { status: 409 });
     return toErrorResponse(e);
   }
 }

@@ -36,10 +36,13 @@ describe("subscription state", () => {
 describe("subscription actions", () => {
   it("start trial: default 14 days; onboarding only once; never on a paid plan or suspended clinic", () => {
     const fresh = rec({ status: "ACTIVE", trialStartedAt: null, trialEndsAt: null });
-    const r = applyAction(fresh, { action: "start_trial" }, false, now);
+    const r = applyAction(fresh, { action: "start_trial" }, true, now);
     expect(r).toMatchObject({ ok: true, patch: { subscriptionStatus: "TRIAL" } });
     if (r.ok) expect(r.patch.trialEndsAt).toEqual(addDays(now, 14));
     expect(applyAction(rec(), { action: "start_trial" }, false, now)).toMatchObject({ ok: false });
+    // onboarding can never restart a trial on an active, cancelled or legacy clinic
+    expect(applyAction(rec({ status: "ACTIVE", trialStartedAt: null, trialEndsAt: null }), { action: "start_trial" }, false, now)).toMatchObject({ ok: false });
+    expect(applyAction(rec({ status: "CANCELLED", trialStartedAt: null }), { action: "start_trial" }, false, now)).toMatchObject({ ok: false });
     expect(applyAction(rec(), { action: "start_trial", days: 30 }, true, now)).toMatchObject({ ok: true });
     expect(applyAction(fresh, { action: "start_trial", days: 99 }, true, now)).toMatchObject({ ok: false });
     expect(applyAction(rec({ status: "ACTIVE", paidThrough: addDays(now, 20), trialStartedAt: null }), { action: "start_trial" }, true, now)).toMatchObject({ ok: false });
@@ -61,8 +64,15 @@ describe("subscription actions", () => {
     expect(applyAction(rec(), { action: "activate", plan: "GOLD" }, true, now)).toMatchObject({ ok: false });
     expect(applyAction(rec(), { action: "activate", plan: "STARTER", paidThrough: addDays(now, -1) }, true, now)).toMatchObject({ ok: false });
     expect(applyAction(rec(), { action: "suspend", note: "unpaid" }, true, now)).toMatchObject({ ok: true, patch: { subscriptionStatus: "SUSPENDED" } });
-    expect(applyAction(rec({ status: "SUSPENDED" }), { action: "reactivate" }, true, now)).toMatchObject({ ok: true });
+    expect(applyAction(rec({ status: "SUSPENDED" }), { action: "reactivate" }, true, now)).toMatchObject({ ok: true, patch: { subscriptionStatus: "TRIAL" } });
     expect(applyAction(rec(), { action: "reactivate" }, true, now)).toMatchObject({ ok: false });
+  });
+  it("reactivate never grants free unlimited access", () => {
+    // a trial clinic that got a plan label, was suspended, then reactivated must NOT become unlimited ACTIVE
+    const r = applyAction(rec({ status: "SUSPENDED", plan: "HOSPITAL", paidThrough: null }), { action: "reactivate" }, true, now);
+    expect(r).toMatchObject({ ok: true, patch: { subscriptionStatus: "TRIAL" } });
+    expect(applyAction(rec({ status: "SUSPENDED", paidThrough: addDays(now, 30), plan: "STARTER" }), { action: "reactivate" }, true, now)).toMatchObject({ ok: true, patch: { subscriptionStatus: "ACTIVE" } });
+    expect(applyAction(rec({ status: "SUSPENDED", trialEndsAt: null, trialStartedAt: null }), { action: "reactivate", to: "TRIAL" }, true, now)).toMatchObject({ ok: false });
   });
   it("onboarding can set the plan label", () => {
     expect(applyAction(rec(), { action: "set_plan", plan: "HOSPITAL" }, false, now)).toMatchObject({ ok: true, patch: { plan: "HOSPITAL" } });
@@ -83,5 +93,17 @@ describe("temporary passwords", () => {
     }
     expect(seen.size).toBe(50);
     expect(generateTempPassword(20).length).toBe(20);
+  });
+});
+
+import { sessionPredatesPasswordChange } from "../auth";
+describe("sessions vs password change", () => {
+  const changed = new Date("2026-11-08T10:00:05.700Z");
+  it("rejects older sessions, keeps one re-issued in the same second", () => {
+    expect(sessionPredatesPasswordChange({ iat: Math.floor(changed.getTime() / 1000) - 1 }, changed)).toBe(true);
+    expect(sessionPredatesPasswordChange({ iat: Math.floor(changed.getTime() / 1000) }, changed)).toBe(false);
+    expect(sessionPredatesPasswordChange({ iat: Math.floor(changed.getTime() / 1000) + 30 }, changed)).toBe(false);
+    expect(sessionPredatesPasswordChange({ iat: 1 }, null)).toBe(false);
+    expect(sessionPredatesPasswordChange({}, changed)).toBe(false);
   });
 });

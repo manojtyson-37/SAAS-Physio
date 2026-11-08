@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { getSession, Role } from "@/lib/auth";
+import { getSession, Role, sessionPredatesPasswordChange } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { methodAllowed, subscriptionView } from "@/lib/platform/subscription";
 
@@ -31,11 +31,15 @@ export async function requireSession(allowedRoles?: Role[]) {
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
     select: {
-      isActive: true, deletedAt: true, mustChangePassword: true, role: true, tenantId: true,
+      isActive: true, deletedAt: true, mustChangePassword: true, passwordChangedAt: true, role: true, tenantId: true,
       tenant: { select: { deletedAt: true, subscriptionStatus: true, trialEndsAt: true, paidThrough: true } },
     },
   });
   if (!user || !user.isActive || user.deletedAt || user.role !== session.role || user.tenantId !== session.tenantId) {
+    return { session: null, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+  }
+  // A password change (or reset) ends every session issued before it, including a stolen one.
+  if (sessionPredatesPasswordChange(session, user.passwordChangedAt)) {
     return { session: null, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
   if (user.mustChangePassword) {

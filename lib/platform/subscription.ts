@@ -66,7 +66,8 @@ export type SubAction =
   | { action: "extend_trial"; days: number }
   | { action: "set_plan"; plan: string }
   | { action: "activate"; plan: string; paidThrough?: Date | null }
-  | { action: "suspend" | "reactivate" | "cancel"; note?: string };
+  | { action: "suspend" | "cancel"; note?: string }
+  | { action: "reactivate"; to?: "TRIAL" | "ACTIVE"; note?: string };
 
 export type SubRecord = SubInput & { plan: string | null; trialStartedAt: Date | null };
 export type SubPatch = { subscriptionStatus?: SubStatus; plan?: string | null; trialStartedAt?: Date; trialEndsAt?: Date | null; paidThrough?: Date | null; subscriptionNote?: string | null };
@@ -83,7 +84,8 @@ export function applyAction(cur: SubRecord, a: SubAction, owner: boolean, now: D
     case "start_trial": {
       const days = a.days ?? DEFAULT_TRIAL_DAYS;
       if (!Number.isInteger(days) || days < 1 || days > MAX_TRIAL_DAYS) return { ok: false, error: `A trial is 1 to ${MAX_TRIAL_DAYS} days` };
-      if (!owner && cur.trialStartedAt) return { ok: false, error: "This clinic has already had a trial. Ask the platform owner" };
+      // The onboarding team may only start the first trial of a clinic that is still on its (unstarted) trial; anything else is the owner's call.
+      if (!owner && !(cur.status === "TRIAL" && !cur.trialStartedAt)) return { ok: false, error: "A trial can only be restarted by the platform owner" };
       if (cur.status === "SUSPENDED") return { ok: false, error: "This clinic is suspended" };
       if (cur.status === "ACTIVE" && cur.paidThrough && cur.paidThrough > now) return { ok: false, error: "This clinic is on a paid plan" };
       return { ok: true, patch: { subscriptionStatus: "TRIAL", trialStartedAt: now, trialEndsAt: addDays(now, days) } };
@@ -114,9 +116,14 @@ export function applyAction(cur: SubRecord, a: SubAction, owner: boolean, now: D
       if (!owner) return ownerOnly();
       if (cur.status === "CANCELLED") return { ok: false, error: "Already cancelled" };
       return { ok: true, patch: { subscriptionStatus: "CANCELLED", subscriptionNote: a.note?.slice(0, 300) || null } };
-    case "reactivate":
+    case "reactivate": {
       if (!owner) return ownerOnly();
       if (cur.status !== "SUSPENDED" && cur.status !== "CANCELLED") return { ok: false, error: "Only a suspended or cancelled clinic can be reactivated" };
-      return { ok: true, patch: { subscriptionStatus: cur.trialEndsAt && !cur.paidThrough && !cur.plan ? "TRIAL" : "ACTIVE", subscriptionNote: null } };
+      // Never grants more than the clinic had: a clinic with a paid-through date returns to ACTIVE; one that only ever had a
+      // trial returns to TRIAL (it may be expired: the owner then activates a plan). `to` lets the owner choose explicitly.
+      const to = a.to ?? (cur.paidThrough ? "ACTIVE" : cur.trialEndsAt ? "TRIAL" : "ACTIVE");
+      if (to === "TRIAL" && !cur.trialEndsAt) return { ok: false, error: "This clinic has no trial to return to. Start a trial or activate a plan" };
+      return { ok: true, patch: { subscriptionStatus: to, subscriptionNote: null } };
+    }
   }
 }

@@ -43,7 +43,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const { id } = await params;
   const parsed = patchSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success || Object.keys(parsed.data).length === 0) return NextResponse.json({ error: parsed.success ? "Nothing to update" : parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
-  const data = { ...parsed.data, email: parsed.data.email || null };
+  const data = { ...parsed.data, ...(parsed.data.email !== undefined ? { email: parsed.data.email || null } : {}) };
   const r = await prisma.$transaction(async (tx) => {
     const u = await tx.tenant.updateMany({ where: { id, deletedAt: null }, data });
     if (u.count === 1) await tx.auditLog.create({ data: { tenantId: id, actorId: g.session.userId, action: "UPDATE", entity: "Clinic", entityId: id, diff: { fields: Object.keys(parsed.data) } } });
