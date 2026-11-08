@@ -4,10 +4,13 @@ import { prisma } from "@/lib/db";
 import { getSession, type SessionPayload } from "@/lib/auth";
 import { allModules, resolveModules } from "./resolve";
 import type { ModuleKey } from "./registry";
+import { sessionModules } from "./sessionModules";
 
 /** The clinic's enabled modules. Super admin has no clinic and sees everything. */
 export async function getEnabledModules(session: Pick<SessionPayload, "role" | "tenantId">): Promise<Set<ModuleKey>> {
   if (session.role === "SUPER_ADMIN" || !session.tenantId) return allModules();
+  const known = sessionModules.get(session);
+  if (known) return resolveModules(known);
   const t = await prisma.tenant.findFirst({ where: { id: session.tenantId, deletedAt: null }, select: { enabledModules: true } });
   return resolveModules(t?.enabledModules);
 }

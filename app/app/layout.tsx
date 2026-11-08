@@ -7,7 +7,7 @@ import { TopBar } from "@/components/TopBar";
 import { ClinicProvider } from "@/components/ClinicContext";
 import { prisma } from "@/lib/db";
 import { sessionPredatesPasswordChange } from "@/lib/auth";
-import { getEnabledModules } from "@/lib/modules/guard";
+import { allModules, resolveModules } from "@/lib/modules/resolve";
 import { clinicTypeDef } from "@/lib/modules/clinicTypes";
 import { AccessEnded, ForcePasswordChange } from "@/components/account/AccountGates";
 import { bannerText, subscriptionView } from "@/lib/platform/subscription";
@@ -19,19 +19,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Re-read the user and clinic: a signed cookie alone must not keep a deactivated user or a suspended clinic inside.
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { isActive: true, deletedAt: true, mustChangePassword: true, passwordChangedAt: true, tenantId: true, role: true },
+    select: {
+      isActive: true, deletedAt: true, mustChangePassword: true, passwordChangedAt: true, tenantId: true, role: true,
+      // One round trip for user + clinic: every extra database read is a full trip to a far-away server.
+      tenant: { select: { clinicType: true, deletedAt: true, subscriptionStatus: true, trialEndsAt: true, paidThrough: true, enabledModules: true } },
+    },
   });
   if (!user || !user.isActive || user.deletedAt || user.role !== session.role || user.tenantId !== session.tenantId || sessionPredatesPasswordChange(session, user.passwordChangedAt)) {
     return <AccessEnded title="Access ended" body="This login is no longer active. Please contact your clinic admin." />;
   }
   if (user.mustChangePassword) return <ForcePasswordChange />;
 
-  const tenant = session.tenantId
-    ? await prisma.tenant.findUnique({
-        where: { id: session.tenantId },
-        select: { clinicType: true, deletedAt: true, subscriptionStatus: true, trialEndsAt: true, paidThrough: true },
-      })
-    : null;
+  const tenant = session.tenantId ? user.tenant : null;
   if (session.tenantId && (!tenant || tenant.deletedAt)) {
     return <AccessEnded title="Clinic not found" body="This clinic account is no longer available. Please contact ClinicOS support." />;
   }
@@ -41,7 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
   const banner = sub ? bannerText(sub) : null;
 
-  const modules = await getEnabledModules(session);
+  const modules = session.role === "SUPER_ADMIN" || !tenant ? allModules() : resolveModules(tenant.enabledModules);
   const items = getNavItems(session.role, modules);
   const type = clinicTypeDef(tenant?.clinicType);
 

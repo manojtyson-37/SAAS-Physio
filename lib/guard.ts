@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { getSession, Role, sessionPredatesPasswordChange } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { methodAllowed, subscriptionView } from "@/lib/platform/subscription";
+import { sessionModules } from "@/lib/modules/sessionModules";
 
 /** Platform staff have no clinic. The onboarding role is deny-by-default: a route must list ONBOARDING to admit it. */
 export const PLATFORM_ROLES: Role[] = ["SUPER_ADMIN", "ONBOARDING"];
@@ -34,7 +35,7 @@ export async function requireSession(allowedRoles?: Role[], opts: { allowWhenRea
     where: { id: session.userId },
     select: {
       isActive: true, deletedAt: true, mustChangePassword: true, passwordChangedAt: true, role: true, tenantId: true,
-      tenant: { select: { deletedAt: true, subscriptionStatus: true, trialEndsAt: true, paidThrough: true } },
+      tenant: { select: { deletedAt: true, subscriptionStatus: true, trialEndsAt: true, paidThrough: true, enabledModules: true } },
     },
   });
   if (!user || !user.isActive || user.deletedAt || user.role !== session.role || user.tenantId !== session.tenantId) {
@@ -62,5 +63,6 @@ export async function requireSession(allowedRoles?: Role[], opts: { allowWhenRea
       return { session: null, response: NextResponse.json({ error: "subscription_expired", message: "Your subscription has ended, so records are read-only. Contact ClinicOS to renew." }, { status: 402 }) };
     }
   }
+  if (user.tenant) sessionModules.set(session, user.tenant.enabledModules);
   return { session, response: null };
 }
