@@ -87,7 +87,7 @@ export default function OpdQueuePage() {
     if (!q.trim() || picked) return;
     let cancel = false;
     const t = setTimeout(() => {
-      fetch(`/api/patients?q=${encodeURIComponent(q.trim())}`)
+      fetch(`/api/patients?limit=6&q=${encodeURIComponent(q.trim())}`)
         .then((r) => r.json())
         .then((d) => {
           if (!cancel) setHits((d.patients ?? []).slice(0, 6));

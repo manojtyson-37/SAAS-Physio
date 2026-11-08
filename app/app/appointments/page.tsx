@@ -36,7 +36,7 @@ export default function AppointmentsPage() {
 
   useEffect(() => {
     load();
-    fetch("/api/patients")
+    fetch("/api/patients?lean=1")
       .then((r) => r.json())
       .then((d) => setPatients(d.patients));
     fetch("/api/doctors")

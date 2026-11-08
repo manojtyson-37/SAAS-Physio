@@ -24,7 +24,7 @@ function CreatePlan({ onClose, presetPatient }: { onClose: () => void; presetPat
 
   useEffect(() => {
     if (q.trim().length < 2) return;
-    const t = setTimeout(() => api<{ patients: Patient[] }>(`/api/patients?q=${encodeURIComponent(q.trim())}`).then((r) => { if (r.ok) setFound(r.data.patients.slice(0, 6)); }), 250);
+    const t = setTimeout(() => api<{ patients: Patient[] }>(`/api/patients?limit=6&q=${encodeURIComponent(q.trim())}`).then((r) => { if (r.ok) setFound(r.data.patients.slice(0, 6)); }), 250);
     return () => clearTimeout(t);
   }, [q]);
 

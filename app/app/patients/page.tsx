@@ -32,6 +32,7 @@ const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 export default function PatientsPage() {
   const billingOn = useHasModule("billing");
   const [patients, setPatients] = useState<Patient[] | null>(null);
+  const [total, setTotal] = useState(0);
   const [q, setQ] = useState("");
   const [showForm, setShowForm] = useState(false);
   const blank = { name: "", phone: "", gender: "", dob: "", bloodGroup: "", allergies: "", abhaId: "", reason: "", leadSource: "WALK_IN" };
@@ -43,6 +44,7 @@ export default function PatientsPage() {
     const res = await fetch(`/api/patients${query ? `?q=${encodeURIComponent(query)}` : ""}`);
     const data = await res.json();
     setPatients(data.patients);
+    setTotal(data.total ?? data.patients.length);
   }, []);
 
   useEffect(() => {
@@ -79,7 +81,7 @@ export default function PatientsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-3xl">Patients</h1>
-          <p className="mt-1 text-sm text-ink/60">{patients?.length ?? 0} records</p>
+          <p className="mt-1 text-sm text-ink/60">{total > (patients?.length ?? 0) ? `Showing ${patients?.length} of ${total} - search to find others` : `${patients?.length ?? 0} records`}</p>
         </div>
         <button
           onClick={() => setShowForm((s) => !s)}

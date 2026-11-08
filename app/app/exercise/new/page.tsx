@@ -25,7 +25,7 @@ export default function NewExercisePlan() {
   useEffect(() => { api<{ templates: Template[] }>("/api/exercise/templates?active=1").then((r) => { if (r.ok) setTemplates(r.data.templates); else setMsg({ ok: false, text: r.error }); }); }, []);
   useEffect(() => {
     if (q.trim().length < 2) return;
-    const t = setTimeout(() => api<{ patients: Patient[] }>(`/api/patients?q=${encodeURIComponent(q.trim())}`).then((r) => { if (r.ok) setFound(r.data.patients.slice(0, 6)); }), 250);
+    const t = setTimeout(() => api<{ patients: Patient[] }>(`/api/patients?limit=6&q=${encodeURIComponent(q.trim())}`).then((r) => { if (r.ok) setFound(r.data.patients.slice(0, 6)); }), 250);
     return () => clearTimeout(t);
   }, [q]);
 

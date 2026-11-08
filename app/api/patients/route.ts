@@ -15,6 +15,13 @@ export async function GET(req: NextRequest) {
   const modules = await getEnabledModules(session);
   const billingOn = modules.has("billing");
 
+  // Search boxes ask for a handful (?limit=6); the full list is capped so a big clinic never ships thousands of rows per click.
+  const limitParam = Number(req.nextUrl.searchParams.get("limit"));
+  // `lean=1` is for dropdowns that need names only: no money totals, a higher cap, and a 3-column payload.
+  const lean = req.nextUrl.searchParams.get("lean") === "1";
+  const cap = lean ? 3000 : 500;
+  const take = Number.isInteger(limitParam) && limitParam > 0 ? Math.min(limitParam, cap) : cap;
+
   const patients = await prisma.patient.findMany({
     where: {
       ...scope,
@@ -28,19 +35,31 @@ export async function GET(req: NextRequest) {
           }
         : {}),
     },
-    include: {
-      invoices: billingOn ? { where: { status: { not: "CANCELLED" }, deletedAt: null } } : false,
-    },
     orderBy: { createdAt: "desc" },
+    take,
   });
 
+  const where = {
+    ...scope,
+    ...(q ? { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { phone: { contains: q } }, { uhid: { contains: q, mode: "insensitive" as const } }] } : {}),
+  };
+  const total = patients.length >= take ? await prisma.patient.count({ where }) : patients.length;
+  if (lean) return NextResponse.json({ patients: patients.map((p) => ({ id: p.id, name: p.name, phone: p.phone, uhid: p.uhid })), total });
+
+  // One grouped query for the money columns instead of loading every invoice row of every patient.
+  const totals = billingOn && patients.length
+    ? await prisma.invoice.groupBy({
+        by: ["patientId"],
+        where: { ...scope, patientId: { in: patients.map((p) => p.id) }, status: { not: "CANCELLED" }, deletedAt: null },
+        _sum: { total: true, paidAmount: true },
+      })
+    : [];
+  const byPatient = new Map(totals.map((t) => [t.patientId, t._sum]));
+
   const rows = patients.map((p) => {
-    const invoices = p.invoices ?? [];
-    const billed = invoices.reduce((s, i) => s + Number(i.total), 0);
-    const outstanding = invoices.reduce(
-      (s, i) => s + (Number(i.total) - Number(i.paidAmount)),
-      0
-    );
+    const sum = byPatient.get(p.id);
+    const billed = Number(sum?.total ?? 0);
+    const outstanding = billed - Number(sum?.paidAmount ?? 0);
     return {
       id: p.id,
       name: p.name,
@@ -54,7 +73,7 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  return NextResponse.json({ patients: rows });
+  return NextResponse.json({ patients: rows, total });
 }
 
 export async function POST(req: NextRequest) {

@@ -60,7 +60,7 @@ function DispenseForm() {
   useEffect(() => {
     if (rxId || q.trim().length < 2) return;
     const t = setTimeout(() => {
-      api<{ patients: Patient[] }>(`/api/patients?q=${encodeURIComponent(q.trim())}`).then((r) => { if (r.ok) setFound(r.data.patients.slice(0, 6)); });
+      api<{ patients: Patient[] }>(`/api/patients?limit=6&q=${encodeURIComponent(q.trim())}`).then((r) => { if (r.ok) setFound(r.data.patients.slice(0, 6)); });
     }, 250);
     return () => clearTimeout(t);
   }, [q, rxId]);

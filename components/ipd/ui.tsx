@@ -42,7 +42,7 @@ export function PatientPicker({ value, onChange }: { value: PatientOpt | null; o
   useEffect(() => {
     if (q.trim().length < 2) return;
     const t = setTimeout(() => {
-      api<{ patients: PatientOpt[] }>(`/api/patients?q=${encodeURIComponent(q.trim())}`).then((r) => { if (r.ok) setFound(r.data.patients.slice(0, 6)); });
+      api<{ patients: PatientOpt[] }>(`/api/patients?limit=6&q=${encodeURIComponent(q.trim())}`).then((r) => { if (r.ok) setFound(r.data.patients.slice(0, 6)); });
     }, 250);
     return () => clearTimeout(t);
   }, [q]);
