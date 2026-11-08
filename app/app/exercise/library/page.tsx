@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/Card";
 import { api, btnGhost, btnPrimary, input, Notice, useCanPrescribe, type Msg, type Template } from "@/components/exercise/ui";
+import { useIsAdmin } from "@/components/ClinicContext";
 
 type Form = { name: string; category: string; description: string; sets: string; reps: string; holdSeconds: string; instructions: string };
 const blank: Form = { name: "", category: "General", description: "", sets: "", reps: "", holdSeconds: "", instructions: "" };
 const num = (s: string) => (s.trim() ? Number(s) : null);
 
 export default function LibraryPage() {
+  const isAdmin = useIsAdmin();
   const canWrite = useCanPrescribe();
   const [rows, setRows] = useState<Template[] | null>(null);
   const [q, setQ] = useState("");
@@ -93,7 +95,7 @@ export default function LibraryPage() {
                     {canWrite && (<>
                       <button className="text-forest hover:underline" onClick={() => { setEditing(t.id); setForm({ name: t.name, category: t.category, description: t.description ?? "", sets: t.sets?.toString() ?? "", reps: t.reps?.toString() ?? "", holdSeconds: t.holdSeconds?.toString() ?? "", instructions: t.instructions ?? "" }); }}>Edit</button>
                       <button className="text-forest hover:underline" onClick={() => act(api(`/api/exercise/templates/${t.id}`, "PATCH", { isActive: !t.isActive }), t.isActive ? "Deactivated." : "Activated.")}>{t.isActive ? "Deactivate" : "Activate"}</button>
-                      <button className="text-clay hover:underline" onClick={() => { if (window.confirm(`Remove "${t.name}" from the library? Existing plans keep their copy.`)) act(api(`/api/exercise/templates/${t.id}`, "DELETE"), "Removed."); }}>Remove</button>
+                      {isAdmin && <button className="text-clay hover:underline" onClick={() => { if (window.confirm(`Remove "${t.name}" from the library? Existing plans keep their copy.`)) act(api(`/api/exercise/templates/${t.id}`, "DELETE"), "Removed."); }}>Remove</button>}
                     </>)}
                   </td>
                 </tr>

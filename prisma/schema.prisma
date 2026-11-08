@@ -821,6 +821,7 @@ model ExercisePlanItem {
   frequency    String?
   instructions String?
   sortOrder    Int          @default(0)
+  deletedAt    DateTime?
 
   @@index([planId])
 }
@@ -984,10 +985,31 @@ model ImagingOrder {
   createdAt     DateTime      @default(now())
   deletedAt     DateTime?
 
+  attachments ImagingAttachment[]
+
   @@unique([tenantId, orderNo])
   @@unique([tenantId, clientRef])
   @@index([tenantId, status])
   @@index([patientId])
+}
+
+/// A scan, X-ray image or outside report attached to an imaging order. The file lives in the private Blob store
+/// under `blobPath` and is only ever served through an authenticated, tenant-checked route.
+model ImagingAttachment {
+  id           String       @id @default(uuid())
+  tenantId     String
+  orderId      String
+  order        ImagingOrder @relation(fields: [orderId], references: [id])
+  blobPath     String
+  filename     String
+  contentType  String
+  sizeBytes    Int
+  uploadedById String?
+  createdAt    DateTime     @default(now())
+  deletedAt    DateTime?
+
+  @@index([orderId])
+  @@index([tenantId])
 }
 
 // ───────────────────────── IPD, ICU & bed management ─────────────────────────

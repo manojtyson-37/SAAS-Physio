@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     include: {
       patient: { select: { id: true, name: true, uhid: true } },
       doctor: { select: { name: true } },
-      _count: { select: { items: true } },
+      _count: { select: { items: { where: { deletedAt: null } } } },
       progress: { select: { recordedAt: true, painScore: true, adherencePercent: true } },
     },
     orderBy: { createdAt: "desc" },

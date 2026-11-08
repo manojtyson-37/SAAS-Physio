@@ -166,3 +166,35 @@ export async function dischargePatient(args: { tenantId: string; userId: string;
 export async function withBedLocked<T>(tenantId: string, bedId: string, fn: (tx: Tx, bed: BedRow) => Promise<T>): Promise<T> {
   return prisma.$transaction(async (tx) => fn(tx, await lockBed(tx, tenantId, bedId)), TX);
 }
+
+/**
+ * "Bill later": invoices the bed charges of a discharged admission that has no invoice yet (billing was off at
+ * discharge, or the invoice was cancelled). Locks the admission so two clicks cannot create two invoices.
+ */
+export async function billAdmission(args: { tenantId: string; userId: string; admissionId: string }) {
+  const { tenantId, admissionId } = args;
+  return prisma.$transaction(async (tx) => {
+    const rows = await tx.$queryRaw<{ status: string; invoiceId: string | null }[]>`SELECT status::text AS status, "invoiceId" FROM "Admission" WHERE id = ${admissionId} AND "tenantId" = ${tenantId} AND "deletedAt" IS NULL FOR UPDATE`;
+    if (rows.length === 0) throw new HttpError(404, "Admission not found");
+    if (rows[0].status !== "DISCHARGED") throw new HttpError(409, "Bed charges are billed when the patient is discharged");
+    if (rows[0].invoiceId) {
+      const inv = await tx.invoice.findUnique({ where: { id: rows[0].invoiceId }, select: { status: true } });
+      if (inv && inv.status !== "CANCELLED") throw new HttpError(409, "Bed charges are already invoiced");
+    }
+    const adm = await tx.admission.findUniqueOrThrow({ where: { id: admissionId }, select: { patientId: true, admissionNo: true, dischargedAt: true } });
+    const stays = await tx.bedStay.findMany({ where: { admissionId }, orderBy: { startedAt: "asc" }, include: { bed: { select: { label: true, ward: { select: { name: true } } } } } });
+    const { lines, totalPaise } = bedCharges(
+      stays.map((s) => ({ startedAt: s.startedAt, endedAt: s.endedAt, ratePaise: toPaise(Number(s.rate)), label: `${s.bed.ward.name} / ${s.bed.label}` })),
+      adm.dischargedAt ?? new Date()
+    );
+    if (totalPaise <= 0) throw new HttpError(409, "There are no bed charges to bill");
+    const invoice = await createInvoiceInTx(tx, {
+      tenantId, userId: args.userId, patientId: adm.patientId,
+      lines: lines.filter((l) => l.amountPaise > 0).map((l) => ({ description: `Bed charges ${adm.admissionNo}: ${l.label} (${l.days} day${l.days === 1 ? "" : "s"})`, qty: l.days, unitPrice: l.ratePaise / 100, gstPercent: 0 })),
+      notes: `Admission ${adm.admissionNo}`,
+    });
+    await tx.admission.update({ where: { id: admissionId }, data: { invoiceId: invoice.id } });
+    await tx.auditLog.create({ data: { tenantId, actorId: args.userId, action: "UPDATE", entity: "Admission", entityId: admissionId, diff: { billedLater: true, totalPaise, invoiceId: invoice.id } } });
+    return { invoiceId: invoice.id, invoiceNumber: invoice.number, totalPaise };
+  }, TX);
+}

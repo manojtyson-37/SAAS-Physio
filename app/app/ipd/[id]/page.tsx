@@ -188,6 +188,12 @@ export default function AdmissionPage({ params }: { params: Promise<{ id: string
           </tbody>
         </table>
         {d.invoice && <p className="mt-2 text-sm">Invoice <Link href={`/app/invoices/${d.invoice.id}`} className="font-data text-forest hover:underline">{d.invoice.number}</Link> · {d.invoice.status}</p>}
+        {!open && d.billingOn && d.charges.total > 0 && (!d.invoice || d.invoice.status === "CANCELLED") && (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button disabled={busy} className={btnPrimary} onClick={() => run(api(`/api/ipd/admissions/${id}/bill`, "POST"), "Bed charges invoiced", () => {})}>Bill bed charges ({inr(d.charges.total)})</button>
+            <span className="text-xs text-ink/50">These charges have no active invoice yet.</span>
+          </div>
+        )}
         {open && (
           <div className="mt-4 border-t border-sand pt-4">
             {!confirmDischarge ? (

@@ -7,6 +7,7 @@ import { Card } from "@/components/Card";
 import { statusClass } from "@/components/billing/status";
 import { StatusBadge, when } from "@/components/lab/shared";
 import { api, btnGhost, btnPrimary, input, inr, Notice, type Msg } from "@/components/pharmacy/ui";
+import ImagingAttachments from "@/components/radiology/ImagingAttachments";
 import { MODALITY_LABEL, type Modality } from "@/lib/radiology/logic";
 
 type Order = {
@@ -124,6 +125,8 @@ export default function ImagingOrderPage() {
           <p className="text-xs text-ink/50">Reported {when(o.reportedAt)}{o.reportedBy ? ` by ${o.reportedBy}` : ""}{o.amendments.length > 0 ? ` · corrected ${o.amendments.length} time${o.amendments.length === 1 ? "" : "s"}` : ""}</p>
         </Card>
       ) : null}
+
+      <ImagingAttachments orderId={o.id} canUpload={o.status !== "CANCELLED"} />
 
       <Card className="space-y-2">
         <h2 className="font-display text-xl">Order details</h2>

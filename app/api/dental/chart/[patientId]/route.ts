@@ -55,7 +55,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
 // Undo a finding: soft delete (?recordId=). The previous finding becomes current again.
 export async function DELETE(req: NextRequest, { params }: Ctx) {
-  const g = await dentalGate(CLINICAL_WRITERS);
+  const g = await dentalGate(["CLINIC_ADMIN"]);
   if (!g.session) return g.response;
   const recordId = req.nextUrl.searchParams.get("recordId");
   if (!recordId) return NextResponse.json({ error: "recordId is required" }, { status: 400 });

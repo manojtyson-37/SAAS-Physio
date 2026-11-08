@@ -9,6 +9,8 @@ export type ClinicInfo = {
   terms: { package: string; packages: string };
   specialties: string[];
   appointmentMinutes: number;
+  /** True for the clinic admin (and the platform admin): the only roles allowed to remove or revoke records. */
+  isAdmin: boolean;
 };
 
 const FALLBACK: ClinicInfo = {
@@ -18,6 +20,7 @@ const FALLBACK: ClinicInfo = {
   terms: { package: "Package", packages: "Packages" },
   specialties: [],
   appointmentMinutes: 30,
+  isAdmin: false,
 };
 
 const Ctx = createContext<ClinicInfo>(FALLBACK);
@@ -28,3 +31,4 @@ export function ClinicProvider({ value, children }: { value: ClinicInfo; childre
 
 export const useClinic = () => useContext(Ctx);
 export const useHasModule = (key: string) => useContext(Ctx).modules.includes(key);
+export const useIsAdmin = () => useContext(Ctx).isAdmin;

@@ -28,7 +28,7 @@ export async function planView(tenantId: string, id: string) {
   const plan = await prisma.exercisePlan.findFirst({
     where: { id, tenantId, deletedAt: null },
     include: {
-      items: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+      items: { where: { deletedAt: null }, orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
       progress: { orderBy: [{ recordedAt: "asc" }, { id: "asc" }] },
       patient: { select: { id: true, name: true, uhid: true, phone: true } },
       doctor: { select: { name: true } },

@@ -54,7 +54,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
 // Soft delete. The name is freed (suffix) so it can be reused; existing plans are unaffected (they hold copies).
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
-  const g = await exerciseGate(PRESCRIBERS);
+  const g = await exerciseGate(["CLINIC_ADMIN"]);
   if (!g.session) return g.response;
   const { id } = await params;
   try {

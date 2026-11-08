@@ -28,7 +28,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       } else {
         data = { templateId: null, name: i.name!, sets: i.sets ?? null, reps: i.reps ?? null, holdSeconds: i.holdSeconds ?? null, frequency: i.frequency ?? null, instructions: i.instructions ?? null };
       }
-      const last = await tx.exercisePlanItem.aggregate({ where: { planId: id }, _max: { sortOrder: true } });
+      const last = await tx.exercisePlanItem.aggregate({ where: { planId: id, deletedAt: null }, _max: { sortOrder: true } });
       const row = await tx.exercisePlanItem.create({ data: { ...data, planId: id, sortOrder: (last._max.sortOrder ?? -1) + 1 }, select: { id: true } });
       await audit(tx, g.tenantId, g.session.userId, "CREATE", "ExercisePlanItem", row.id);
       return row;
@@ -50,7 +50,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     await prisma.$transaction(async (tx) => {
       const plan = await lockPlan(tx, g.tenantId, id);
       if (plan.status !== "ACTIVE") throw new HttpError(409, "This plan is closed");
-      const cur = await tx.exercisePlanItem.findMany({ where: { planId: id }, select: { id: true } });
+      const cur = await tx.exercisePlanItem.findMany({ where: { planId: id, deletedAt: null }, select: { id: true } });
       if (!isValidReorder(cur.map((c) => c.id), parsed.data.order)) throw new HttpError(400, "The order must list every exercise in the plan exactly once");
       for (const [idx, itemId] of parsed.data.order.entries()) await tx.exercisePlanItem.update({ where: { id: itemId }, data: { sortOrder: idx } });
       await audit(tx, g.tenantId, g.session.userId, "UPDATE", "ExercisePlan", id);

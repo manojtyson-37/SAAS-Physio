@@ -6,6 +6,7 @@ import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, X
 import { Card } from "@/components/Card";
 import { api, btnGhost, btnPrimary, fmtDate, input, Notice, StatusBadge, useCanLog, useCanPrescribe, type Msg, type Template } from "@/components/exercise/ui";
 import { chartRows, prescriptionText, progressSummary } from "@/lib/exercise/logic";
+import { useIsAdmin } from "@/components/ClinicContext";
 
 type Item = { id: string; templateId: string | null; name: string; sets: number | null; reps: number | null; holdSeconds: number | null; frequency: string | null; instructions: string | null };
 type Prog = { id: string; recordedAt: string; painScore: number | null; adherencePercent: number | null; notes: string | null };
@@ -17,6 +18,7 @@ type ItemForm = { name: string; sets: string; reps: string; holdSeconds: string;
 const num = (s: string) => (s.trim() ? Number(s) : null);
 
 export default function ExercisePlanPage({ params }: { params: Promise<{ id: string }> }) {
+  const isAdmin = useIsAdmin();
   const { id } = use(params);
   const canPrescribe = useCanPrescribe();
   const canLog = useCanLog();
@@ -123,7 +125,7 @@ export default function ExercisePlanPage({ params }: { params: Promise<{ id: str
                         <button aria-label="Move up" disabled={idx === 0 || busy} className="text-forest disabled:opacity-30" onClick={() => move(idx, -1)}>Up</button>
                         <button aria-label="Move down" disabled={idx === plan.items.length - 1 || busy} className="text-forest disabled:opacity-30" onClick={() => move(idx, 1)}>Down</button>
                         <button className="text-forest hover:underline" onClick={() => { setEditing(i.id); setForm({ name: i.name, sets: i.sets?.toString() ?? "", reps: i.reps?.toString() ?? "", holdSeconds: i.holdSeconds?.toString() ?? "", frequency: i.frequency ?? "", instructions: i.instructions ?? "" }); }}>Edit</button>
-                        <button className="text-clay hover:underline" disabled={busy} onClick={() => run(api(`/api/exercise/plans/${id}/items/${i.id}`, "DELETE"), "Exercise removed.")}>Remove</button>
+                        {isAdmin && <button className="text-clay hover:underline" disabled={busy} onClick={() => run(api(`/api/exercise/plans/${id}/items/${i.id}`, "DELETE"), "Exercise removed.")}>Remove</button>}
                       </div>
                     )}
                   </div>

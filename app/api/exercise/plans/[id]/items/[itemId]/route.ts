@@ -22,7 +22,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       const plan = await lockPlan(tx, g.tenantId, id);
       if (plan.status !== "ACTIVE") throw new HttpError(409, "This plan is closed");
       const r = await tx.exercisePlanItem.updateMany({
-        where: { id: itemId, planId: id },
+        where: { id: itemId, planId: id, deletedAt: null },
         data: {
           ...(d.name !== undefined ? { name: d.name } : {}),
           ...(d.sets !== undefined ? { sets: d.sets } : {}), ...(d.reps !== undefined ? { reps: d.reps } : {}), ...(d.holdSeconds !== undefined ? { holdSeconds: d.holdSeconds } : {}),
@@ -38,21 +38,18 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   }
 }
 
-// Remove an exercise line from an active plan (the schema has no soft-delete column for plan items; the action is audit-logged).
+// Remove an exercise line from an active plan: a soft delete (the row stays, hidden), and only the clinic admin may revoke.
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
-  const g = await exerciseGate(PRESCRIBERS);
+  const g = await exerciseGate(["CLINIC_ADMIN"]);
   if (!g.session) return g.response;
   const { id, itemId } = await params;
   try {
     await prisma.$transaction(async (tx) => {
       const plan = await lockPlan(tx, g.tenantId, id);
       if (plan.status !== "ACTIVE") throw new HttpError(409, "This plan is closed");
-      const before = await tx.exercisePlanItem.findFirst({ where: { id: itemId, planId: id } });
-      if (!before) throw new HttpError(404, "Exercise not found");
-      const r = await tx.exercisePlanItem.deleteMany({ where: { id: itemId, planId: id } });
+      const r = await tx.exercisePlanItem.updateMany({ where: { id: itemId, planId: id, deletedAt: null }, data: { deletedAt: new Date() } });
       if (r.count !== 1) throw new HttpError(404, "Exercise not found");
-      // Full snapshot in the audit row so a removed prescription line stays recoverable.
-      await tx.auditLog.create({ data: { tenantId: g.tenantId, actorId: g.session.userId, action: "DELETE", entity: "ExercisePlanItem", entityId: itemId, diff: { planId: id, removed: before } as object } });
+      await audit(tx, g.tenantId, g.session.userId, "DELETE", "ExercisePlanItem", itemId);
     }, TX_OPTS);
     return NextResponse.json({ ok: true });
   } catch (e) {

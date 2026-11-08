@@ -21,7 +21,7 @@ export default function PatientAdmissionsPanel({ patientId }: { patientId: strin
     <Card>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="font-display text-xl">Admissions</h2>
-        <Link href="/app/ipd/admit" className="text-sm text-forest hover:underline">Admit</Link>
+        <Link href={`/app/ipd/admit?patientId=${patientId}`} className="text-sm text-forest hover:underline">Admit</Link>
       </div>
       {error && <p className="text-sm text-clay">{error}</p>}
       {!error && rows === null && <p className="text-sm text-ink/50">Loading...</p>}

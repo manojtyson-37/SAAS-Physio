@@ -48,7 +48,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
 // Remove a planned procedure (kept as CANCELLED so history is not lost). Done procedures cannot be removed.
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
-  const g = await dentalGate(CLINICAL_WRITERS);
+  const g = await dentalGate(["CLINIC_ADMIN"]);
   if (!g.session) return g.response;
   const { id, itemId } = await params;
   try {

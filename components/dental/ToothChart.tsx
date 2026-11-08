@@ -7,6 +7,7 @@ import {
   toothName, type Condition,
 } from "@/lib/dental/fdi";
 import { api, btnGhost, btnPrimary, fmtDateTime, input, Notice, useCanWriteClinical, type Msg } from "./ui";
+import { useIsAdmin } from "@/components/ClinicContext";
 
 type Rec = { id: string; tooth: number; condition: string; surfaces: string | null; notes: string | null; at: string; by: string | null };
 type ChartData = { patient: { id: string; name: string; uhid: string | null }; teeth: Rec[]; history: Rec[] };
@@ -52,6 +53,7 @@ function Row({ teeth, state, sel, onPick }: { teeth: readonly number[]; state: M
 
 /** Interactive FDI chart. Adult 32 teeth by default, toggle to add the 20 primary teeth. */
 export function ToothChart({ patientId }: { patientId: string }) {
+  const isAdmin = useIsAdmin();
   const canWrite = useCanWriteClinical();
   const [data, setData] = useState<ChartData | null>(null);
   const [msg, setMsg] = useState<Msg>(null);
@@ -157,7 +159,7 @@ export function ToothChart({ patientId }: { patientId: string }) {
               {toothHistory.map((h) => (
                 <li key={h.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                   <span>{styleOf(h.condition).label}{h.surfaces ? ` (${h.surfaces})` : ""}{h.notes ? ` - ${h.notes}` : ""}</span>
-                  <span className="text-xs text-ink/50">{fmtDateTime(h.at)}{h.by ? ` · ${h.by}` : ""}{canWrite && <button onClick={() => undo(h.id)} className="ml-3 text-clay hover:underline">Undo</button>}</span>
+                  <span className="text-xs text-ink/50">{fmtDateTime(h.at)}{h.by ? ` · ${h.by}` : ""}{canWrite && isAdmin && <button onClick={() => undo(h.id)} className="ml-3 text-clay hover:underline">Undo</button>}</span>
                 </li>
               ))}
             </ul>
@@ -177,7 +179,7 @@ export function ToothChart({ patientId }: { patientId: string }) {
                   <td className="px-2 py-2">{styleOf(h.condition).label}{h.surfaces ? ` (${h.surfaces})` : ""}</td>
                   <td className="px-2 py-2 text-ink/60">{h.notes}</td>
                   <td className="px-2 py-2 text-xs text-ink/50">{fmtDateTime(h.at)}{h.by ? ` · ${h.by}` : ""}</td>
-                  <td className="px-6 py-2 text-right">{canWrite && <button onClick={() => undo(h.id)} className="text-clay hover:underline">Undo</button>}</td>
+                  <td className="px-6 py-2 text-right">{canWrite && isAdmin && <button onClick={() => undo(h.id)} className="text-clay hover:underline">Undo</button>}</td>
                 </tr>
               ))}
             </tbody>

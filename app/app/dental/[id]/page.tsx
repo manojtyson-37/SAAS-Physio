@@ -7,6 +7,7 @@ import { statusClass } from "@/components/billing/status";
 import { api, btnGhost, btnPrimary, fmtDate, input, Notice, paise, PlanBadge, useBillingOn, useCanWriteClinical, useRole, type Msg } from "@/components/dental/ui";
 import { toothName } from "@/lib/dental/fdi";
 import { PLAN_TRANSITIONS, type PlanStatus } from "@/lib/dental/plan";
+import { useIsAdmin } from "@/components/ClinicContext";
 
 type Item = { id: string; tooth: number | null; procedure: string; price: number; gstPercent: number; status: "PLANNED" | "DONE" | "CANCELLED"; doneAt: string | null; invoice: { id: string; number: string; status: string } | null };
 type Plan = {
@@ -19,6 +20,7 @@ const blank: Form = { tooth: "", procedure: "", price: "", gstPercent: "0" };
 const ACTION: Record<string, string> = { ACCEPTED: "Patient accepted", IN_PROGRESS: "Start treatment", COMPLETED: "Complete plan", CANCELLED: "Cancel plan" };
 
 export default function PlanPage({ params }: { params: Promise<{ id: string }> }) {
+  const isAdmin = useIsAdmin();
   const { id } = use(params);
   const canWrite = useCanWriteClinical();
   const role = useRole();
@@ -103,7 +105,7 @@ export default function PlanPage({ params }: { params: Promise<{ id: string }> }
                     {canWrite && i.status === "PLANNED" && open && (<>
                       {canDo && <button className="text-forest hover:underline" disabled={busy} onClick={() => run(api(`/api/dental/plans/${id}/items/${i.id}`, "PATCH", { status: "DONE" }), "Marked done.")}>Mark done</button>}
                       <button className="text-forest hover:underline" onClick={() => { setEditing(i.id); setForm({ tooth: i.tooth ? String(i.tooth) : "", procedure: i.procedure, price: String(i.price), gstPercent: String(i.gstPercent) }); }}>Edit</button>
-                      <button className="text-clay hover:underline" disabled={busy} onClick={() => run(api(`/api/dental/plans/${id}/items/${i.id}`, "DELETE"), "Procedure removed.")}>Remove</button>
+                      {isAdmin && <button className="text-clay hover:underline" disabled={busy} onClick={() => run(api(`/api/dental/plans/${id}/items/${i.id}`, "DELETE"), "Procedure removed.")}>Remove</button>}
                     </>)}
                   </td>
                 </tr>

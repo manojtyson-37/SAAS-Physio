@@ -24,6 +24,13 @@ function AdmitForm() {
   const [msg, setMsg] = useState<Msg>(null);
 
   useEffect(() => {
+    const pid = sp.get("patientId");
+    if (pid) {
+      api<{ patient?: PatientOpt } & Partial<PatientOpt>>(`/api/patients/${pid}`).then((r) => {
+        const p = r.ok ? (r.data.patient ?? (r.data.id ? (r.data as PatientOpt) : null)) : null;
+        if (p) setPatient({ id: p.id, name: p.name, uhid: p.uhid ?? null, phone: p.phone ?? "" });
+      });
+    }
     api<{ doctors: Doctor[] }>("/api/doctors").then((r) => { if (r.ok) setDoctors(r.data.doctors); });
     api<{ wards: BoardWard[] }>("/api/ipd/board").then((r) => { if (r.ok) setWards(r.data.wards); else setMsg({ ok: false, text: r.error }); });
   }, []);
