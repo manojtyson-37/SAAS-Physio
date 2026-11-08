@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PulseMark } from "@/components/PulseMark";
 import { BRAND } from "@/lib/brand";
-import { DEMO_GROUPS, DEMO_PASSWORD, SUPER_ADMIN_DEMO } from "@/lib/demoAccounts";
+import { DEMO_GROUPS, DEMO_PASSWORD } from "@/lib/demoAccounts";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -133,16 +133,6 @@ export default function LoginPage() {
                   </div>
                 </div>
               ))}
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail(SUPER_ADMIN_DEMO.email);
-                  setPassword(DEMO_PASSWORD);
-                }}
-                className="text-xs text-ink/50 hover:text-ink"
-              >
-                {SUPER_ADMIN_DEMO.label} →
-              </button>
             </div>
           </div>
 
