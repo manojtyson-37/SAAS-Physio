@@ -132,6 +132,11 @@ model Tenant {
   vitals        Vitals[]
   prescriptions Prescription[]
   serviceItems  ServiceItem[]
+  suppliers     Supplier[]
+  stockItems    StockItem[]
+  stockBatches  StockBatch[]
+  stockMoves    StockMovement[]
+  dispensations Dispensation[]
 }
 
 model Branch {
@@ -174,6 +179,8 @@ model User {
   prescriptions    Prescription[]
   invoicesCreated  Invoice[]          @relation("InvoiceCreatedBy")
   paymentsReceived Payment[]          @relation("PaymentReceivedBy")
+  stockMoves       StockMovement[]
+  dispensations    Dispensation[]
 }
 
 model Patient {
@@ -206,6 +213,7 @@ model Patient {
   visits        Visit[]
   vitals        Vitals[]
   prescriptions Prescription[]
+  dispensations Dispensation[]
 
   @@unique([tenantId, uhid])
 }
@@ -252,8 +260,9 @@ model Invoice {
   createdById  String?
   createdBy    User?     @relation("InvoiceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
-  lineItems InvoiceLineItem[]
-  payments  Payment[]
+  lineItems     InvoiceLineItem[]
+  payments      Payment[]
+  dispensations Dispensation[]
 
   @@unique([tenantId, number])
   @@index([tenantId, status])
@@ -482,7 +491,8 @@ model Prescription {
   notes     String?
   createdAt DateTime @default(now())
 
-  items PrescriptionItem[]
+  items         PrescriptionItem[]
+  dispensations Dispensation[]
 }
 
 model PrescriptionItem {
@@ -502,4 +512,152 @@ model PrescriptionItem {
   instructions   String?
 
   @@index([prescriptionId])
+}
+
+enum StockMoveType {
+  RECEIPT
+  DISPENSE
+  ADJUSTMENT
+  WRITE_OFF
+  VOID_RETURN
+}
+
+enum DispensationStatus {
+  COMPLETED
+  VOIDED
+}
+
+model Supplier {
+  id        String    @id @default(uuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  name      String
+  phone     String?
+  gstin     String?
+  address   String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  batches StockBatch[]
+
+  @@unique([tenantId, name])
+}
+
+/// A thing the clinic stocks (medicine or consumable). Quantities are whole units (tablets, bottles, ...).
+model StockItem {
+  id           String    @id @default(uuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  /// Generic name for medicines (matches prescriptions); plain name for consumables.
+  name         String
+  brand        String?
+  form         String?
+  strength     String?
+  unit         String    @default("unit")
+  category     String    @default("Medicine")
+  hsn          String?
+  gstPercent   Decimal   @default(0) @db.Decimal(5, 2)
+  reorderLevel Int       @default(0)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  deletedAt    DateTime?
+
+  batches   StockBatch[]
+  movements StockMovement[]
+  lines     DispensationLine[]
+
+  @@index([tenantId, name])
+}
+
+model StockBatch {
+  id         String    @id @default(uuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+  itemId     String
+  item       StockItem @relation(fields: [itemId], references: [id])
+  supplierId String?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  batchNo    String
+  /// Last day the batch may be dispensed.
+  expiryDate DateTime? @db.Date
+  qtyOnHand  Int       @default(0)
+  costPrice  Decimal   @default(0) @db.Decimal(10, 2)
+  /// Selling price per unit (MRP).
+  salePrice  Decimal   @db.Decimal(10, 2)
+  receivedAt DateTime  @default(now())
+  deletedAt  DateTime?
+
+  movements StockMovement[]
+  lines     DispensationLine[]
+
+  @@unique([itemId, batchNo])
+  @@index([tenantId, itemId])
+}
+
+/// Append-only ledger: every change to a batch's quantity has exactly one row here.
+model StockMovement {
+  id             String        @id @default(uuid())
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  itemId         String
+  item           StockItem     @relation(fields: [itemId], references: [id])
+  batchId        String
+  batch          StockBatch    @relation(fields: [batchId], references: [id])
+  type           StockMoveType
+  /// Signed: positive adds stock, negative removes it.
+  qty            Int
+  note           String?
+  dispensationId String?
+  createdById    String?
+  createdBy      User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+
+  @@index([tenantId, itemId])
+  @@index([batchId])
+}
+
+model Dispensation {
+  id             String             @id @default(uuid())
+  tenantId       String
+  tenant         Tenant             @relation(fields: [tenantId], references: [id])
+  patientId      String
+  patient        Patient            @relation(fields: [patientId], references: [id])
+  visitId        String?
+  prescriptionId String?
+  prescription   Prescription?      @relation(fields: [prescriptionId], references: [id], onDelete: SetNull)
+  invoiceId      String?
+  invoice        Invoice?           @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  status         DispensationStatus @default(COMPLETED)
+  voidReason     String?
+  voidedAt       DateTime?
+  /// Client-generated id so a double click or retry cannot dispense twice.
+  clientRef      String?
+  total          Decimal            @default(0) @db.Decimal(10, 2)
+  notes          String?
+  dispensedById  String?
+  dispensedBy    User?              @relation(fields: [dispensedById], references: [id], onDelete: SetNull)
+  createdAt      DateTime           @default(now())
+
+  lines DispensationLine[]
+
+  @@unique([tenantId, clientRef])
+  @@index([tenantId, createdAt])
+  @@index([prescriptionId])
+}
+
+model DispensationLine {
+  id             String       @id @default(uuid())
+  dispensationId String
+  dispensation   Dispensation @relation(fields: [dispensationId], references: [id], onDelete: Cascade)
+  itemId         String
+  item           StockItem    @relation(fields: [itemId], references: [id])
+  batchId        String
+  batch          StockBatch   @relation(fields: [batchId], references: [id])
+  qty            Int
+  unitPrice      Decimal      @db.Decimal(10, 2)
+  gstPercent     Decimal      @default(0) @db.Decimal(5, 2)
+  lineTotal      Decimal      @db.Decimal(10, 2)
+
+  @@index([dispensationId])
 }

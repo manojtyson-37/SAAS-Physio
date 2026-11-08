@@ -139,3 +139,14 @@ describe("day keys", () => {
     expect(isValidDayKey("nope")).toBe(false);
   });
 });
+
+describe("computeInvoice line order (pharmacy pairs dispensation lines with invoice lines by index)", () => {
+  it("keeps input order", () => {
+    const c = computeInvoice([
+      { description: "a", qty: 1, unitPrice: 10, gstPercent: 0 },
+      { description: "b", qty: 2, unitPrice: 5, gstPercent: 12 },
+      { description: "c", qty: 3, unitPrice: 1, gstPercent: 5 },
+    ]);
+    expect(c.lines.map((l) => l.description)).toEqual(["a", "b", "c"]);
+  });
+});

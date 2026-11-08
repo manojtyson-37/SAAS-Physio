@@ -66,7 +66,9 @@ describe("resolve and selection", () => {
   it("validates admin selections", () => {
     expect(parseSelection(["billing", "opd", "billing"])).toEqual({ ok: true, modules: ["opd", "billing"] });
     expect(parseSelection([])).toEqual({ ok: true, modules: [] });
-    expect(parseSelection(["pharmacy"]).ok).toBe(false);
+    expect(parseSelection(["lab"]).ok).toBe(false);
+    // pharmacy cannot work without stock, so choosing it brings inventory along
+    expect(parseSelection(["pharmacy"])).toEqual({ ok: true, modules: ["inventory", "pharmacy"] });
     expect(parseSelection("opd").ok).toBe(false);
     expect(parseSelection([1]).ok).toBe(false);
   });
@@ -77,7 +79,7 @@ describe("navigation", () => {
 
   it("keeps the familiar order when everything is on", () => {
     expect(labels("STAFF", MODULE_KEYS)).toEqual([
-      "Dashboard", "Patients", "OPD Queue", "Appointments", "Billing", "Staff & Doctors", "Attendance", "Marketing", "Doctor Ratings",
+      "Dashboard", "Patients", "OPD Queue", "Appointments", "Billing", "Inventory", "Pharmacy", "Staff & Doctors", "Attendance", "Marketing", "Doctor Ratings",
     ]);
   });
 

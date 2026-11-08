@@ -32,6 +32,8 @@ type DashboardData = {
   };
   appointments?: { today: number; upcoming: number };
   packages?: { active: number; runningLow: number };
+  stock?: { items: number; lowStock: number; outOfStock: number; expiringBatches: number; expiredBatches: number };
+  pharmacy?: { pendingRx: number; dispensedToday: number; soldToday: number };
   leadCounts?: Record<string, number>;
   doctors: { id: string; name: string; specialty: string | null; patients: number; revenue: number | null }[];
   revenueByBranch?: { name: string; revenue: number }[];
@@ -102,6 +104,20 @@ export default function DashboardPage() {
         />
         {billing && (
           <StatCard label="Outstanding" value={inr(billing.outstanding)} sub={`${billing.openInvoices} open invoices`} />
+        )}
+        {data.pharmacy && (
+          <StatCard
+            label="Pharmacy"
+            value={String(data.pharmacy.pendingRx)}
+            sub={`prescriptions to dispense · ${data.pharmacy.dispensedToday} sold today (${inr(data.pharmacy.soldToday)})`}
+          />
+        )}
+        {data.stock && (
+          <StatCard
+            label="Stock alerts"
+            value={String(data.stock.lowStock + data.stock.outOfStock + data.stock.expiringBatches + data.stock.expiredBatches)}
+            sub={`${data.stock.lowStock} low · ${data.stock.outOfStock} out · ${data.stock.expiringBatches} expiring · ${data.stock.expiredBatches} expired`}
+          />
         )}
         {packages && (
           <StatCard

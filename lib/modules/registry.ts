@@ -11,7 +11,9 @@ export type ModuleKey =
   | "packages"
   | "attendance"
   | "marketing"
-  | "ratings";
+  | "ratings"
+  | "inventory"
+  | "pharmacy";
 
 export type ModuleGroup = "Clinical" | "Front desk" | "Finance" | "People" | "Growth";
 
@@ -26,6 +28,8 @@ export type ModuleDef = {
   nav: NavEntry[];
   /** URL prefixes under /app that belong to this module (their pages return 404 when it is off). */
   pagePrefixes: string[];
+  /** Modules that must be on for this one to work; switching this on switches them on too. */
+  requires?: ModuleKey[];
 };
 
 export const MODULES: ModuleDef[] = [
@@ -88,6 +92,23 @@ export const MODULES: ModuleDef[] = [
     nav: [{ label: "Doctor Ratings", href: "/app/ratings" }],
     pagePrefixes: ["/app/ratings"],
   },
+  {
+    key: "inventory",
+    label: "Inventory & stock",
+    description: "Medicines and consumables with batch and expiry, suppliers, stock receipts and low-stock alerts.",
+    group: "Clinical",
+    nav: [{ label: "Inventory", href: "/app/inventory" }],
+    pagePrefixes: ["/app/inventory"],
+  },
+  {
+    key: "pharmacy",
+    label: "Pharmacy & dispensing",
+    description: "Dispense a prescription or sell over the counter, oldest-expiry batch first, with an invoice.",
+    group: "Clinical",
+    nav: [{ label: "Pharmacy", href: "/app/pharmacy" }],
+    pagePrefixes: ["/app/pharmacy"],
+    requires: ["inventory"],
+  },
 ];
 
 /** Planned modules, shown on the settings page as "Coming soon" and not switchable yet. */
@@ -96,8 +117,6 @@ export type PlannedModule = { key: string; label: string; description: string; g
 export const PLANNED_MODULES: PlannedModule[] = [
   { key: "dental_chart", label: "Dental chart & treatment plans", description: "Tooth chart, procedures per tooth and staged treatment plans.", group: "Clinical" },
   { key: "exercise_plans", label: "Exercise & rehab plans", description: "Prescribe home exercise programmes and track progress.", group: "Clinical" },
-  { key: "pharmacy", label: "Pharmacy", description: "Dispense from prescriptions, batches, expiry and pharmacy billing.", group: "Clinical" },
-  { key: "inventory", label: "Inventory", description: "Stock, purchase orders and consumables.", group: "Finance" },
   { key: "lab", label: "Pathology lab", description: "Test orders, sample tracking and result reports.", group: "Clinical" },
   { key: "radiology", label: "Radiology & imaging", description: "Imaging orders, reports and image storage.", group: "Clinical" },
   { key: "ipd", label: "IPD, ICU & bed management", description: "Admissions, wards, beds, nursing notes and ICU charts.", group: "Clinical" },

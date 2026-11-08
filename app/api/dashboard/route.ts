@@ -5,6 +5,7 @@ import { tenantScope } from "@/lib/scope";
 import { getEnabledModules } from "@/lib/modules/guard";
 import { istDateKey, istDayRange } from "@/lib/hospital/dates";
 import { toPaise } from "@/lib/hospital/billing";
+import { stockAlerts } from "@/lib/pharmacy/view";
 
 const minutes = (from: Date, to: Date) => Math.max(0, Math.round((to.getTime() - from.getTime()) / 60000));
 const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((s, x) => s + x, 0) / xs.length) : null);
@@ -197,6 +198,25 @@ export async function GET() {
         revenue: b.patients.reduce((s, p) => s + p.invoices.reduce((si, i) => si + Number(i.total), 0), 0),
       }));
     }
+  }
+
+  if (on("inventory") && scope.tenantId) {
+    out.stock = await stockAlerts(scope.tenantId, istDateKey(now));
+  }
+  if (on("pharmacy") && scope.tenantId) {
+    const [pendingRx, today] = await Promise.all([
+      prisma.prescription.count({
+        where: {
+          tenantId: scope.tenantId, createdAt: { gte: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000) }, items: { some: {} },
+          dispensations: { none: { status: "COMPLETED" } }, visit: { deletedAt: null }, patient: { deletedAt: null },
+        },
+      }),
+      prisma.dispensation.aggregate({
+        where: { tenantId: scope.tenantId, status: "COMPLETED", createdAt: { gte: today0, lt: today1 } },
+        _sum: { total: true }, _count: true,
+      }),
+    ]);
+    out.pharmacy = { pendingRx, dispensedToday: today._count, soldToday: Number(today._sum.total ?? 0) };
   }
 
   return NextResponse.json(out);

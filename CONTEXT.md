@@ -259,3 +259,13 @@ Plan ("clinic core first"): Foundations (UHID, Visit, Vitals, Rx) → OPD queue/
 - Brand name lives in `lib/brand.ts` (one-line rename). The session cookie name `physiocare_session` is intentionally unchanged (renaming would log everyone out).
 - Demo clinics: `prisma/demoClinics.ts`, added with `scripts/seed-demo-clinics.ts` (additive, idempotent, dry-run by default). The wiping `prisma/seed.ts` also creates them. Logins in `lib/demoAccounts.ts` and README.
 - Dashboard "today" is the India calendar day (`istDayRange`), not the server timezone.
+
+## Inventory & pharmacy (added 2026-11-08)
+- Two modules: `inventory` (items, batches with expiry, suppliers, receipts, adjustments, ledger) and `pharmacy` (dispense a prescription or counter sale). `pharmacy` requires `inventory`: `withRequirements()` (lib/modules/resolve.ts) adds it whenever a selection is saved.
+- Models: Supplier, StockItem (generic name matches prescriptions), StockBatch (`qtyOnHand`, `expiryDate` DATE = last dispensable day, per-batch `salePrice`), StockMovement (append-only signed ledger, one row per quantity change), Dispensation + DispensationLine. Quantities are whole units.
+- Dispensing (lib/pharmacy/dispense.ts): batches locked `FOR UPDATE` per item (items sorted by id) then allocated oldest-expiry-first (`allocateFefo`, expired batches never used), CAS decrement, then a pharmacy Invoice (shares `Tenant.invoiceSeq`) when billing is on. Lock order is batches then tenant row; nothing locks them the other way. `clientRef` makes a double click a no-op.
+- Void (`voidDispensation`): row-locks the dispensation, returns stock to the same batches (ledger VOID_RETURN), cancels the invoice if unpaid; refused once any payment exists.
+- Receive uses a raw `INSERT ... ON CONFLICT (itemId, batchNo) DO UPDATE` so concurrent receipts both count; re-receiving a batch with a different expiry is rejected.
+- `PATCH` schemas must NOT reuse create schemas with defaults (zod `.partial()` re-applies defaults and silently reset GST/unit once).
+- Demo: `scripts/seed-demo-stock.ts` (dry-run default, `--apply`, additive, skips clinics that already have stock) stocks CityCare, BoneWell, Lakeview (inventory + pharmacy) and BrightSmile (inventory).
+- Tests: `lib/pharmacy/stock.test.ts` (FEFO, expiry, rx quantity). Concurrency e2e lives in the session scratchpad (`pharmacy_e2e.py`): 6 parallel dispenses of 10 against 41 units => exactly 4 succeed.

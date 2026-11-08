@@ -4,7 +4,7 @@ import type { ModuleKey } from "@/lib/modules/registry";
 export type NavItem = { label: string; href: string };
 
 // Modules that sit above "Staff & Doctors" in the menu; the rest sit below it.
-const FRONT: ModuleKey[] = ["opd", "appointments", "billing"];
+const FRONT: ModuleKey[] = ["opd", "appointments", "billing", "pharmacy", "inventory"];
 
 /**
  * `modules` is the clinic's enabled set. SUPER_ADMIN has no clinic, so sees every module (platform view).

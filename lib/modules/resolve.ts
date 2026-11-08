@@ -11,6 +11,13 @@ export function isModuleOn(modules: ReadonlySet<ModuleKey>, key: ModuleKey) {
   return modules.has(key);
 }
 
+/** Adds every module the chosen ones depend on (pharmacy needs inventory), in registry order. */
+export function withRequirements(keys: readonly ModuleKey[]): ModuleKey[] {
+  const on = new Set<ModuleKey>(keys);
+  for (const m of MODULES) if (on.has(m.key)) m.requires?.forEach((r) => on.add(r));
+  return MODULE_KEYS.filter((k) => on.has(k));
+}
+
 /** Validates an admin's selection from the settings page. Unknown keys are rejected, never silently dropped. */
 export function parseSelection(input: unknown): { ok: true; modules: ModuleKey[] } | { ok: false; error: string } {
   if (!Array.isArray(input) || input.some((k) => typeof k !== "string")) {
@@ -19,7 +26,7 @@ export function parseSelection(input: unknown): { ok: true; modules: ModuleKey[]
   const unknown = input.filter((k) => !isModuleKey(k));
   if (unknown.length) return { ok: false, error: `Unknown module: ${unknown[0]}` };
   const unique = [...new Set(input as ModuleKey[])];
-  return { ok: true, modules: MODULE_KEYS.filter((k) => unique.includes(k)) };
+  return { ok: true, modules: withRequirements(unique) };
 }
 
 /** Sidebar entries (after Patients) for the modules that are on, in registry order. */
