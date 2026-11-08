@@ -75,7 +75,7 @@ function NewImagingOrder() {
           <p className="text-sm">{chosen ? <>Amount <span className="font-data text-lg">{inr(Math.round(chosen.price * (1 + chosen.gstPercent / 100) * 100) / 100)}</span> <span className="text-xs text-ink/50">incl. GST</span></> : "Choose a study"}</p>
           <button disabled={busy || !patient || !chosen} className={btnPrimary}>{busy ? "Creating..." : "Create order"}</button>
         </div>
-        <p className="text-xs text-ink/50">Images are not stored here. Keep the films or DICOM files in your imaging system; this record holds the written report only.</p>
+        <p className="text-xs text-ink/50">After you place the order you can attach the images or an outside report (JPEG, PNG, WebP or PDF, up to 4 MB each). DICOM files stay in your imaging system.</p>
       </Card>
     </form>
   );

@@ -40,15 +40,15 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   let blobPath: string | null = null;
   try {
-    const order = await prisma.imagingOrder.findFirst({ where: { id, tenantId: g.tenantId, deletedAt: null }, select: { status: true } });
-    if (!order) throw new HttpError(404, "Imaging order not found");
-    if (order.status === "CANCELLED") throw new HttpError(409, "This order is cancelled");
-    const count = await prisma.imagingAttachment.count({ where: { orderId: id, tenantId: g.tenantId, deletedAt: null } });
-    if (count >= MAX_ATTACHMENTS_PER_ORDER) throw new HttpError(409, `An order can hold at most ${MAX_ATTACHMENTS_PER_ORDER} files`);
-
     blobPath = `imaging/${g.tenantId}/${id}/${randomUUID()}.${type.ext}`;
     await storePut(blobPath, bytes, type.contentType);
     const row = await prisma.$transaction(async (tx) => {
+      // Lock the order: the file count, the cancelled check and the insert happen as one step per order.
+      const o = await tx.$queryRaw<{ status: string }[]>`SELECT status::text AS status FROM "ImagingOrder" WHERE id = ${id} AND "tenantId" = ${g.tenantId} AND "deletedAt" IS NULL FOR UPDATE`;
+      if (o.length === 0) throw new HttpError(404, "Imaging order not found");
+      if (o[0].status === "CANCELLED") throw new HttpError(409, "This order is cancelled");
+      const count = await tx.imagingAttachment.count({ where: { orderId: id, tenantId: g.tenantId, deletedAt: null } });
+      if (count >= MAX_ATTACHMENTS_PER_ORDER) throw new HttpError(409, `An order can hold at most ${MAX_ATTACHMENTS_PER_ORDER} files`);
       const created = await tx.imagingAttachment.create({
         data: { tenantId: g.tenantId, orderId: id, blobPath: blobPath!, filename: safeFilename(file.name), contentType: type.contentType, sizeBytes: bytes.length, uploadedById: g.session.userId },
       });

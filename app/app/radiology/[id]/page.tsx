@@ -146,7 +146,6 @@ export default function ImagingOrderPage() {
             </div>
           )}
         </div>
-        <p className="pt-2 text-xs text-ink/50">Images are not stored here: this record holds the written report only.</p>
       </Card>
     </div>
   );

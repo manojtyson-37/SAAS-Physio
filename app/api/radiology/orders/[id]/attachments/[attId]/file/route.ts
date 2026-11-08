@@ -8,11 +8,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const g = await radGate();
   if (!g.session) return g.response;
   const { id, attId } = await params;
-  const a = await prisma.imagingAttachment.findFirst({ where: { id: attId, orderId: id, tenantId: g.tenantId, deletedAt: null } });
+  const a = await prisma.imagingAttachment.findFirst({ where: { id: attId, orderId: id, tenantId: g.tenantId, deletedAt: null, order: { deletedAt: null } } });
   if (!a) return NextResponse.json({ error: "File not found" }, { status: 404 });
   const obj = await storeGet(a.blobPath);
   if (!obj) return NextResponse.json({ error: "File not found" }, { status: 404 });
-  const download = req.nextUrl.searchParams.get("download") === "1";
+  // Images may show inline; anything else (PDF) is always a download so embedded content never runs on our origin.
+  const download = req.nextUrl.searchParams.get("download") === "1" || !a.contentType.startsWith("image/");
   const asciiName = a.filename.replace(/[^\x20-\x7e]/g, "_").replace(/"/g, "");
   return new NextResponse(obj.stream, {
     headers: {
@@ -21,6 +22,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(a.filename)}`,
       "X-Content-Type-Options": "nosniff",
       "Cache-Control": "private, no-store",
+      "Content-Security-Policy": "default-src 'none'; sandbox",
     },
   });
 }

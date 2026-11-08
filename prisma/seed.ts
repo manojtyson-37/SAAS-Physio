@@ -58,6 +58,32 @@ async function main() {
   await guardWipe();
 
   await prisma.auditLog.deleteMany();
+  // Tables added after the original seed, children before parents (the wipe is guarded by SEED_CONFIRM_WIPE above).
+  await prisma.imagingAttachment.deleteMany();
+  await prisma.imagingOrder.deleteMany();
+  await prisma.imagingStudyType.deleteMany();
+  await prisma.labOrderItem.deleteMany();
+  await prisma.labOrder.deleteMany();
+  await prisma.labTest.deleteMany();
+  await prisma.dischargeSummary.deleteMany();
+  await prisma.chartEntry.deleteMany();
+  await prisma.bedStay.deleteMany();
+  await prisma.admission.deleteMany();
+  await prisma.bed.deleteMany();
+  await prisma.ward.deleteMany();
+  await prisma.exerciseProgress.deleteMany();
+  await prisma.exercisePlanItem.deleteMany();
+  await prisma.exercisePlan.deleteMany();
+  await prisma.exerciseTemplate.deleteMany();
+  await prisma.treatmentPlanItem.deleteMany();
+  await prisma.treatmentPlan.deleteMany();
+  await prisma.toothRecord.deleteMany();
+  await prisma.dispensationLine.deleteMany();
+  await prisma.dispensation.deleteMany();
+  await prisma.stockMovement.deleteMany();
+  await prisma.stockBatch.deleteMany();
+  await prisma.stockItem.deleteMany();
+  await prisma.supplier.deleteMany();
   // Hospital tables first: their FKs to Patient/User/Tenant are RESTRICT.
   await prisma.prescriptionItem.deleteMany();
   await prisma.prescription.deleteMany();
