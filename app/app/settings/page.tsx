@@ -10,6 +10,8 @@ type Data = {
   clinicType: string;
   clinicTypeLabel: string;
   enabled: string[];
+  selfService?: boolean;
+  subscription?: { state: string; daysLeft: number | null; plan: string | null; trialEndsAt: string | null; paidThrough: string | null } | null;
   modules: Mod[];
   planned: Mod[];
   types: Type[];
@@ -81,6 +83,19 @@ export default function SettingsPage() {
         </p>
       </div>
 
+      {data.subscription && (
+        <div className="rounded-xl border border-sand bg-white px-4 py-3 text-sm">
+          <span className="font-medium">Your plan</span>
+          {" · "}
+          {data.subscription.state === "TRIAL" ? `Trial${data.subscription.daysLeft !== null ? `, ${data.subscription.daysLeft} day${data.subscription.daysLeft === 1 ? "" : "s"} left` : ""}`
+            : data.subscription.state === "ACTIVE" ? `Active${data.subscription.plan ? ` (${data.subscription.plan.toLowerCase()})` : ""}${data.subscription.paidThrough ? `, paid until ${new Date(data.subscription.paidThrough).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}` : ""}`
+            : data.subscription.state.replace("_", " ").toLowerCase()}
+        </div>
+      )}
+      {data.selfService === false && (
+        <p className="rounded-lg bg-sand px-3 py-2 text-sm text-ink/70">Your modules are managed by ClinicOS. To add or remove a module, contact ClinicOS support.</p>
+      )}
+
       {msg && (
         <p role="status" className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-forest/10 text-forest" : "bg-clay-light text-clay"}`}>
           {msg.text}
@@ -150,11 +165,11 @@ export default function SettingsPage() {
       </Card>
 
       <div className="sticky bottom-4 flex flex-wrap items-center gap-3 rounded-xl border border-sand bg-white/90 p-3 backdrop-blur">
-        <button disabled={!dirty || saving} onClick={() => save(false)} className="rounded-lg bg-forest px-5 py-2 text-sm font-medium text-cream hover:bg-forest-deep disabled:opacity-50">
+        <button disabled={!dirty || saving || data.selfService === false} onClick={() => save(false)} className="rounded-lg bg-forest px-5 py-2 text-sm font-medium text-cream hover:bg-forest-deep disabled:opacity-50">
           {saving ? "Saving…" : "Save changes"}
         </button>
         {type !== data.clinicType && (
-          <button disabled={saving} onClick={() => save(true)} className="rounded-lg border border-forest px-4 py-2 text-sm text-forest hover:bg-forest/5 disabled:opacity-50">
+          <button disabled={saving || data.selfService === false} onClick={() => save(true)} className="rounded-lg border border-forest px-4 py-2 text-sm text-forest hover:bg-forest/5 disabled:opacity-50">
             Save and apply {presetOf(type)?.label} preset
           </button>
         )}

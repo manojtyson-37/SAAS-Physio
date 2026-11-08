@@ -99,7 +99,8 @@ describe("navigation", () => {
   it("super admin sees every module without a clinic", () => {
     expect(allModules().size).toBe(MODULE_KEYS.length);
     expect(labels("SUPER_ADMIN")).toContain("Clinics");
-    expect(labels("SUPER_ADMIN")).toContain("Doctor Ratings");
+    expect(labels("SUPER_ADMIN")).toEqual(["Overview", "Clinics", "Platform team"]);
+    expect(labels("ONBOARDING")).toEqual(["Clinics"]);
   });
 });
 

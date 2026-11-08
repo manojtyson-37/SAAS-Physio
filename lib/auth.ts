@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "default_secret");
 const COOKIE_NAME = "physiocare_session";
 
-export type Role = "SUPER_ADMIN" | "CLINIC_ADMIN" | "DOCTOR" | "STAFF";
+export type Role = "SUPER_ADMIN" | "ONBOARDING" | "CLINIC_ADMIN" | "DOCTOR" | "STAFF";
 
 export type SessionPayload = {
   userId: string;

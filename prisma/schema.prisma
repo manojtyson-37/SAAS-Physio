@@ -12,9 +12,18 @@ datasource db {
 
 enum Role {
   SUPER_ADMIN
+  /// Platform onboarding team: creates clinics, sets modules and trials. Never sees clinic data.
+  ONBOARDING
   CLINIC_ADMIN
   DOCTOR
   STAFF
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
 }
 
 enum LeadSource {
@@ -102,20 +111,30 @@ enum VisitStatus {
 }
 
 model Tenant {
-  id             String       @id @default(uuid())
-  name           String
-  gstNumber      String?
-  phone          String?
-  email          String?
-  address        String?
-  facilityType   FacilityType @default(CLINIC)
-  uhidPrefix     String       @default("UH")
-  uhidSeq        Int          @default(0)
-  invoiceSeq     Int          @default(0)
-  clinicType     ClinicType   @default(PHYSIOTHERAPY)
-  enabledModules String[]     @default([])
-  createdAt      DateTime     @default(now())
-  deletedAt      DateTime?
+  id                 String             @id @default(uuid())
+  name               String
+  gstNumber          String?
+  phone              String?
+  email              String?
+  address            String?
+  facilityType       FacilityType       @default(CLINIC)
+  uhidPrefix         String             @default("UH")
+  uhidSeq            Int                @default(0)
+  invoiceSeq         Int                @default(0)
+  clinicType         ClinicType         @default(PHYSIOTHERAPY)
+  enabledModules     String[]           @default([])
+  /// Existing clinics are grandfathered as ACTIVE with no end date; new clinics start a TRIAL.
+  subscriptionStatus SubscriptionStatus @default(ACTIVE)
+  plan               String?
+  trialStartedAt     DateTime?
+  trialEndsAt        DateTime?
+  /// Paid up to this moment (null = no end date).
+  paidThrough        DateTime?
+  subscriptionNote   String?
+  /// When false only the platform team can change the clinic's modules.
+  selfServiceModules Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  deletedAt          DateTime?
 
   branches      Branch[]
   users         User[]
@@ -170,20 +189,22 @@ model Branch {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  tenantId     String?
-  tenant       Tenant?   @relation(fields: [tenantId], references: [id])
-  branchId     String?
-  branch       Branch?   @relation(fields: [branchId], references: [id])
-  name         String
-  email        String    @unique
-  passwordHash String
-  role         Role
-  specialty    String?
-  title        String?
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  deletedAt    DateTime?
+  id                 String    @id @default(uuid())
+  tenantId           String?
+  tenant             Tenant?   @relation(fields: [tenantId], references: [id])
+  branchId           String?
+  branch             Branch?   @relation(fields: [branchId], references: [id])
+  name               String
+  email              String    @unique
+  passwordHash       String
+  role               Role
+  specialty          String?
+  title              String?
+  isActive           Boolean   @default(true)
+  /// Set for temporary passwords handed out by the platform team: the user must choose their own first.
+  mustChangePassword Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  deletedAt          DateTime?
 
   appointments            Appointment[]      @relation("DoctorAppointments")
   clinicalNotes           ClinicalNote[]

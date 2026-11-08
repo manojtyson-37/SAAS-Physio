@@ -11,12 +11,26 @@ export async function middleware(req: NextRequest) {
   const isAppRoute = pathname.startsWith("/app");
   const isLoginRoute = pathname === "/login";
 
+  // API requests: stamp the real HTTP method for the subscription gate (clients cannot spoof it, it is overwritten here).
+  if (pathname.startsWith("/api/")) {
+    const h = new Headers(req.headers);
+    h.set("x-cos-method", req.method);
+    return NextResponse.next({ request: { headers: h } });
+  }
+
   if (isAppRoute && !session) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  if (isAppRoute && pathname.startsWith("/app/clinics") && session?.role !== "SUPER_ADMIN") {
+  // The onboarding team only ever sees the platform console and its own account page.
+  if (isAppRoute && session?.role === "ONBOARDING" && !(pathname === "/app/platform" || pathname.startsWith("/app/platform/"))) {
+    return NextResponse.redirect(new URL("/app/platform", req.url));
+  }
+  if (isAppRoute && session && session.role !== "ONBOARDING" && session.role !== "SUPER_ADMIN" && (pathname === "/app/platform" || pathname.startsWith("/app/platform/"))) {
     return NextResponse.redirect(new URL("/app", req.url));
+  }
+  if (isAppRoute && pathname.startsWith("/app/clinics")) {
+    return NextResponse.redirect(new URL("/app/platform", req.url));
   }
 
   if (isLoginRoute && session) {
@@ -27,5 +41,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/app/:path*", "/login"],
+  matcher: ["/app/:path*", "/login", "/api/:path*"],
 };
