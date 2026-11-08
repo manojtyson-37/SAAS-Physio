@@ -269,3 +269,14 @@ Plan ("clinic core first"): Foundations (UHID, Visit, Vitals, Rx) → OPD queue/
 - `PATCH` schemas must NOT reuse create schemas with defaults (zod `.partial()` re-applies defaults and silently reset GST/unit once).
 - Demo: `scripts/seed-demo-stock.ts` (dry-run default, `--apply`, additive, skips clinics that already have stock) stocks CityCare, BoneWell, Lakeview (inventory + pharmacy) and BrightSmile (inventory).
 - Tests: `lib/pharmacy/stock.test.ts` (FEFO, expiry, rx quantity). Concurrency e2e lives in the session scratchpad (`pharmacy_e2e.py`): 6 parallel dispenses of 10 against 41 units => exactly 4 succeed.
+
+## Clinical suite (added 2026-11-08): dental chart, exercise plans, lab, radiology, IPD, discharge
+- Modules `dental_chart`, `exercise_plans`, `lab`, `radiology`, `ipd`, `discharge` (discharge requires ipd). One additive migration `20261108062204_modules_clinical_suite` (incl. a hand-written partial unique index `Admission_bedId_admitted_key`: one ADMITTED admission per bed; Prisma does not manage it, leave it).
+- Billing from any module goes through `lib/hospital/invoiceTx.ts` (`createInvoiceInTx`, `cancelUnpaidInvoiceInTx`); invoice ids on orders/plans/admissions are plain strings (no FK).
+- Per-clinic counters on Tenant: `labSeq` (LAB-000001), `imagingSeq` (IMG-), `admissionSeq` (ADM-), allocated inside the transaction.
+- IPD bed charges: per stay, `max(1, ceil(hours/24))` days at the bed's snapshotted daily rate; billed at discharge when billing is on. A transfer shortly after admission therefore bills a minimum day per bed (policy to confirm with the clinic).
+- Discharge summary read and write: DOCTOR + CLINIC_ADMIN only; FINAL is immutable. Lab/imaging prefill reads those tables only when those modules are on.
+- Exercise plan items are hard-deleted when removed from an ACTIVE plan; the audit row keeps a full snapshot.
+- Patient page tabs embed `Patient*Panel` components per module; dashboard cards per module.
+- Demo data: `scripts/seed-demo-suite.ts` (dry run default; `--apply --host=<part of DB host>` required; additive; skips sections that already have data).
+- e2e scripts live in the session scratchpad (`lab|radiology|dental|exercise|ipd|discharge|pharmacy_e2e.py`); all passed on dev on 2026-11-08.
