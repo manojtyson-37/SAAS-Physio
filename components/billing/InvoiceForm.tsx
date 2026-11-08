@@ -1,5 +1,6 @@
 "use client";
 
+import { SearchSelect } from "@/components/SearchSelect";
 import { useEffect, useMemo, useState } from "react";
 import { BillingError, computeInvoice, toPaise } from "@/lib/hospital/billing";
 
@@ -77,18 +78,7 @@ export default function InvoiceForm({
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <label className="text-xs text-ink/60">Add from price list</label>
-          <select
-            value=""
-            onChange={(e) => addService(e.target.value)}
-            className={`mt-1 block w-64 ${input}`}
-          >
-            <option value="">{services.length ? "— choose a service —" : "No price list yet"}</option>
-            {services.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} · {inr(s.price)}
-              </option>
-            ))}
-          </select>
+          <div className="mt-1 w-64"><SearchSelect ariaLabel="Add from price list" placeholder={services.length ? "Type to search services…" : "No price list yet"} value="" onChange={addService} options={services.map((s) => ({ value: s.id, label: s.name, hint: inr(s.price) }))} /></div>
         </div>
         <button
           type="button"

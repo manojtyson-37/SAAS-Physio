@@ -1,5 +1,6 @@
 "use client";
 
+import { SearchSelect } from "@/components/SearchSelect";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
@@ -144,10 +145,7 @@ function DispenseForm() {
               <div key={r.key} className="flex flex-wrap items-end gap-3 border-b border-sand/60 pb-3 last:border-0">
                 <div className="min-w-[14rem] flex-1">
                   {r.rxText && <p className="text-sm font-medium">{r.rxText}</p>}
-                  <select aria-label="Stock item" value={r.itemId} onChange={(e) => setRows(rows.map((x) => (x.key === r.key ? { ...x, itemId: e.target.value } : x)))} className={`mt-1 block w-full ${input}`}>
-                    <option value="">{r.rxText && r.options.length === 0 ? "Not in your stock list" : "Choose item…"}</option>
-                    {(r.options.length ? r.options : stock).map((s) => <option key={s.id} value={s.id}>{s.label} · {s.inDateQty} {s.unit}{s.price != null ? ` · ${inr(s.price)}` : ""}</option>)}
-                  </select>
+                  <SearchSelect ariaLabel="Stock item" className="mt-1" placeholder={r.rxText && r.options.length === 0 ? "Not in your stock list" : "Choose item… type to search"} value={r.itemId} onChange={(v) => setRows(rows.map((x) => (x.key === r.key ? { ...x, itemId: v } : x)))} options={(r.options.length ? r.options : stock).map((s) => ({ value: s.id, label: s.label, hint: `${s.inDateQty} ${s.unit}${s.price != null ? ` · ${inr(s.price)}` : ""}` }))} />
                 </div>
                 <div><label className="text-xs text-ink/60">Qty{o ? ` (max ${o.inDateQty})` : ""}</label>
                   <input type="number" min={1} step={1} value={r.qty} onChange={(e) => setRows(rows.map((x) => (x.key === r.key ? { ...x, qty: e.target.value } : x)))} className={`mt-1 block w-24 ${input}`} /></div>

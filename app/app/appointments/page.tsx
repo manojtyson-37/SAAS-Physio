@@ -1,5 +1,6 @@
 "use client";
 
+import { SearchSelect } from "@/components/SearchSelect";
 import { useEffect, useState, useCallback } from "react";
 import { Card } from "@/components/Card";
 import { useClinic } from "@/components/ClinicContext";
@@ -87,35 +88,11 @@ export default function AppointmentsPage() {
           <form onSubmit={handleCreate} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="text-xs text-ink/60">Patient*</label>
-              <select
-                required
-                value={form.patientId}
-                onChange={(e) => setForm({ ...form, patientId: e.target.value })}
-                className="mt-1 w-full rounded-lg border border-sand px-3 py-2 text-sm"
-              >
-                <option value="">— select —</option>
-                {patients.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+              <SearchSelect required ariaLabel="Patient" placeholder="Type a name to search…" value={form.patientId} onChange={(v) => setForm({ ...form, patientId: v })} options={patients.map((p) => ({ value: p.id, label: p.name }))} />
             </div>
             <div>
               <label className="text-xs text-ink/60">Doctor*</label>
-              <select
-                required
-                value={form.doctorId}
-                onChange={(e) => setForm({ ...form, doctorId: e.target.value })}
-                className="mt-1 w-full rounded-lg border border-sand px-3 py-2 text-sm"
-              >
-                <option value="">— select —</option>
-                {doctors.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+              <SearchSelect required ariaLabel="Doctor" placeholder="Type a name to search…" value={form.doctorId} onChange={(v) => setForm({ ...form, doctorId: v })} options={doctors.map((d) => ({ value: d.id, label: d.name }))} />
             </div>
             <div>
               <label className="text-xs text-ink/60">Date &amp; Time*</label>

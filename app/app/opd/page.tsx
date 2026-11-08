@@ -1,5 +1,6 @@
 "use client";
 
+import { SearchSelect } from "@/components/SearchSelect";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card } from "@/components/Card";
@@ -194,19 +195,7 @@ export default function OpdQueuePage() {
               </div>
               <div>
                 <label className="text-[10px] uppercase tracking-widest text-ink/40">Doctor</label>
-                <select
-                  required
-                  value={doctorId}
-                  onChange={(e) => setDoctorId(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-sand px-3 py-2 text-sm"
-                >
-                  <option value="">Select doctor…</option>
-                  {doctors.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
+                <SearchSelect required ariaLabel="Doctor" placeholder="Type a name to search…" value={doctorId} onChange={setDoctorId} options={doctors.map((d) => ({ value: d.id, label: d.name }))} />
               </div>
               <div>
                 <label className="text-[10px] uppercase tracking-widest text-ink/40">Chief complaint</label>

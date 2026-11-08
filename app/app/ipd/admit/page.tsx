@@ -1,5 +1,6 @@
 "use client";
 
+import { SearchSelect } from "@/components/SearchSelect";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
@@ -59,10 +60,7 @@ function AdmitForm() {
         <form onSubmit={submit} className="space-y-4">
           <label className="block text-sm"><span className="mb-1 block text-ink/60">Patient</span><PatientPicker value={patient} onChange={setPatient} /></label>
           <label className="block text-sm"><span className="mb-1 block text-ink/60">Doctor in charge</span>
-            <select className={`${input} w-full`} value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
-              <option value="">Choose a doctor</option>
-              {doctors.map((d) => <option key={d.id} value={d.id}>{d.title ? `${d.title} ` : ""}{d.name}{d.specialty ? ` (${d.specialty})` : ""}</option>)}
-            </select>
+            <SearchSelect required ariaLabel="Doctor" placeholder="Type a name to search…" value={doctorId} onChange={setDoctorId} options={doctors.map((d) => ({ value: d.id, label: `${d.title ? `${d.title} ` : ""}${d.name}`, hint: d.specialty ?? undefined }))} />
           </label>
           <label className="block text-sm"><span className="mb-1 block text-ink/60">Bed (free beds only)</span><BedSelect wards={wards} value={bedId} onChange={setBedId} allowNone /></label>
           <label className="block text-sm"><span className="mb-1 block text-ink/60">Reason for admission</span><textarea className={`${input} w-full`} rows={2} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} /></label>

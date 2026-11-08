@@ -1,5 +1,6 @@
 "use client";
 
+import { SearchSelect } from "@/components/SearchSelect";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/Card";
@@ -132,8 +133,7 @@ export default function InventoryPage() {
         <Card>
           <form onSubmit={receive} className="flex flex-wrap items-end gap-3">
             <div><label className="text-xs text-ink/60">Item*</label>
-              <select required value={rcv.itemId} onChange={(e) => pickItem(e.target.value)} className={`mt-1 block w-60 ${input}`}>
-                <option value="">Choose…</option>{items?.map((i) => <option key={i.id} value={i.id}>{i.label}</option>)}</select></div>
+              <div className="mt-1 w-60"><SearchSelect required ariaLabel="Item" placeholder="Type to search items…" value={rcv.itemId} onChange={pickItem} options={(items ?? []).map((i) => ({ value: i.id, label: i.label }))} /></div></div>
             <div><label className="text-xs text-ink/60">Batch no.*</label>
               <input required maxLength={40} value={rcv.batchNo} onChange={(e) => setRcv({ ...rcv, batchNo: e.target.value })} className={`mt-1 block w-28 ${input}`} /></div>
             <div><label className="text-xs text-ink/60">Expiry</label>
@@ -145,8 +145,7 @@ export default function InventoryPage() {
             <div><label className="text-xs text-ink/60">Sell ₹ / unit*</label>
               <input required type="number" min={0.01} step="0.01" value={rcv.salePrice} onChange={(e) => setRcv({ ...rcv, salePrice: e.target.value })} className={`mt-1 block w-24 ${input}`} /></div>
             <div><label className="text-xs text-ink/60">Supplier</label>
-              <select value={rcv.supplierId} onChange={(e) => setRcv({ ...rcv, supplierId: e.target.value })} className={`mt-1 block w-44 ${input}`}>
-                <option value="">None</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+              <div className="mt-1 w-44"><SearchSelect allowClear ariaLabel="Supplier" placeholder="None" value={rcv.supplierId} onChange={(v) => setRcv({ ...rcv, supplierId: v })} options={suppliers.map((s) => ({ value: s.id, label: s.name }))} /></div></div>
             <button disabled={busy} className={btnPrimary}>Add to stock</button>
           </form>
           <p className="mt-2 text-xs text-ink/50">Receiving the same batch number again adds to that batch (the expiry must match) and sets its selling price to the one you enter.</p>

@@ -1,5 +1,6 @@
 "use client";
 
+import { SearchSelect } from "@/components/SearchSelect";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
@@ -45,7 +46,6 @@ function NewImagingOrder() {
     if (!r.ok) return setMsg({ ok: false, text: r.error });
     router.push(`/app/radiology/${r.data.id}`);
   }
-  const groups = [...new Set((types ?? []).map((t) => t.modality))];
 
   return (
     <form onSubmit={submit} className="space-y-6">
@@ -60,14 +60,7 @@ function NewImagingOrder() {
         {types === null ? <p className="text-sm text-ink/60">Loading...</p> : types.length === 0 ? (
           <p className="text-sm text-ink/60">No study types yet. <Link href="/app/radiology/types" className="text-forest underline">Add study types or load the starter set</Link>.</p>
         ) : (
-          <select value={typeId} onChange={(e) => setTypeId(e.target.value)} aria-label="Study" required className={`${input} w-full sm:w-96`}>
-            <option value="">Choose a study</option>
-            {groups.map((m) => (
-              <optgroup key={m} label={MODALITY_LABEL[m]}>
-                {types.filter((t) => t.modality === m).map((t) => <option key={t.id} value={t.id}>{t.name} ({inr(t.price)})</option>)}
-              </optgroup>
-            ))}
-          </select>
+          <SearchSelect required ariaLabel="Study" placeholder="Type a study name, e.g. chest, knee, MRI…" className="sm:w-96" value={typeId} onChange={setTypeId} options={types.map((t) => ({ value: t.id, label: t.name, hint: `${MODALITY_LABEL[t.modality]} · ${inr(t.price)}` }))} />
         )}
         <textarea value={info} onChange={(e) => setInfo(e.target.value)} maxLength={500} rows={2} placeholder="Clinical information for the radiologist (optional)" aria-label="Clinical information" className={`${input} w-full`} />
         {billingOn && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bill} onChange={(e) => setBill(e.target.checked)} /> Create an invoice for this study</label>}

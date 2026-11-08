@@ -1,5 +1,6 @@
 "use client";
 
+import { SearchSelect } from "@/components/SearchSelect";
 import Link from "next/link";
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -136,10 +137,7 @@ export default function ExercisePlanPage({ params }: { params: Promise<{ id: str
         )}
         {canPrescribe && active && (
           <div className="flex flex-wrap items-center gap-2 border-t border-sand px-6 py-4">
-            <select className={input} value={pick} onChange={(e) => setPick(e.target.value)} aria-label="Library exercise">
-              <option value="">Add from library...</option>
-              {templates.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.category})</option>)}
-            </select>
+            <div className="w-72"><SearchSelect ariaLabel="Library exercise" placeholder="Add from library… type to search" value={pick} onChange={setPick} options={templates.map((t) => ({ value: t.id, label: t.name, hint: t.category }))} /></div>
             <button className={btnPrimary} disabled={!pick || busy} onClick={async () => { if (await run(api(`/api/exercise/plans/${id}/items`, "POST", { templateId: pick }), "Exercise added.")) setPick(""); }}>Add</button>
             <button className={btnGhost} disabled={busy} onClick={async () => { const name = window.prompt("Custom exercise name"); if (name) await run(api(`/api/exercise/plans/${id}/items`, "POST", { name }), "Exercise added. Use Edit to set sets and reps."); }}>Add custom</button>
           </div>
