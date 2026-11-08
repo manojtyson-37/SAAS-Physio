@@ -6,6 +6,7 @@ import { getEnabledModules } from "@/lib/modules/guard";
 import { istDateKey, istDayRange } from "@/lib/hospital/dates";
 import { toPaise } from "@/lib/hospital/billing";
 import { stockAlerts } from "@/lib/pharmacy/view";
+import { ipdStats } from "@/lib/ipd/stats";
 
 const minutes = (from: Date, to: Date) => Math.max(0, Math.round((to.getTime() - from.getTime()) / 60000));
 const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((s, x) => s + x, 0) / xs.length) : null);
@@ -236,14 +237,8 @@ export async function GET() {
       out.radiology = { pending, reportedToday };
     }
     if (on("ipd")) {
-      const [totalBeds, admitted, icu, dischargedToday, draftSummaries] = await Promise.all([
-        prisma.bed.count({ where: { tenantId, isActive: true } }),
-        prisma.admission.count({ where: { tenantId, deletedAt: null, status: "ADMITTED" } }),
-        prisma.admission.count({ where: { tenantId, deletedAt: null, status: "ADMITTED", bed: { ward: { type: { in: ["ICU", "NICU", "HDU"] } } } } }),
-        prisma.admission.count({ where: { tenantId, deletedAt: null, status: "DISCHARGED", dischargedAt: { gte: today0, lt: today1 } } }),
-        on("discharge") ? prisma.dischargeSummary.count({ where: { tenantId, status: "DRAFT" } }) : Promise.resolve(null),
-      ]);
-      out.ipd = { totalBeds, admitted, icuOccupied: icu, dischargedToday, draftSummaries };
+      const st = await ipdStats(tenantId);
+      out.ipd = { totalBeds: st.totalBeds, admitted: st.admitted, icuOccupied: st.icuOccupied, dischargedToday: st.dischargedToday, draftSummaries: on("discharge") ? await prisma.dischargeSummary.count({ where: { tenantId, status: "DRAFT" } }) : null };
     }
     if (on("dental_chart")) {
       out.dental = {

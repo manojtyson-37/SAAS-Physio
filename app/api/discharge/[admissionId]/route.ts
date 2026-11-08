@@ -14,9 +14,9 @@ const admissionSel = {
   bed: { select: { label: true, ward: { select: { name: true } } } },
 } as const;
 
-// Any clinic user may read: summary (or null) plus the prefill built from the stay record.
+// Doctors and clinic admin only (allergies, date of birth and a clinical prefill): summary (or null) plus the prefill built from the stay record.
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ admissionId: string }> }) {
-  const g = await ipdGate("discharge");
+  const g = await ipdGate("discharge", SUMMARY_ROLES);
   if (!g.session) return g.response;
   const { admissionId } = await ctx.params;
   const a = await prisma.admission.findFirst({ where: { id: admissionId, tenantId: g.tenantId, deletedAt: null }, select: admissionSel });

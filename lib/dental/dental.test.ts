@@ -55,7 +55,8 @@ describe("plan rules", () => {
     expect(transitionBlocker("IN_PROGRESS", "COMPLETED", [{ status: "DONE" }, { status: "PLANNED" }])).toMatch(/planned/i);
     expect(transitionBlocker("IN_PROGRESS", "COMPLETED", [{ status: "CANCELLED" }])).toMatch(/at least one/i);
     expect(transitionBlocker("IN_PROGRESS", "COMPLETED", [{ status: "DONE" }, { status: "CANCELLED" }])).toBeNull();
-    expect(transitionBlocker("PROPOSED", "ACCEPTED", [])).toBeNull();
+    expect(transitionBlocker("PROPOSED", "ACCEPTED", [])).toMatch(/at least one procedure/i);
+    expect(transitionBlocker("PROPOSED", "ACCEPTED", [{ status: "PLANNED" }])).toBeNull();
   });
   it("open and done gates", () => {
     expect(planIsOpen("PROPOSED")).toBe(true);

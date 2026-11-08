@@ -23,6 +23,7 @@ export const canMarkDone = (s: PlanStatus) => s === "ACCEPTED" || s === "IN_PROG
 /** Why a plan cannot move to `to`, or null when it can. */
 export function transitionBlocker(from: PlanStatus, to: PlanStatus, items: { status: ItemStatus }[]): string | null {
   if (!canTransition(from, to)) return `A ${from.toLowerCase().replace("_", " ")} plan cannot move to ${to.toLowerCase().replace("_", " ")}`;
+  if (to === "ACCEPTED" && items.filter((i) => i.status !== "CANCELLED").length === 0) return "Add at least one procedure before the plan can be accepted";
   if (to === "COMPLETED") {
     if (items.some((i) => i.status === "PLANNED")) return "Mark every planned procedure done or remove it before completing the plan";
     if (!items.some((i) => i.status === "DONE")) return "Complete at least one procedure before completing the plan";

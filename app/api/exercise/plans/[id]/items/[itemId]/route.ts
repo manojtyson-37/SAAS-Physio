@@ -47,9 +47,12 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     await prisma.$transaction(async (tx) => {
       const plan = await lockPlan(tx, g.tenantId, id);
       if (plan.status !== "ACTIVE") throw new HttpError(409, "This plan is closed");
+      const before = await tx.exercisePlanItem.findFirst({ where: { id: itemId, planId: id } });
+      if (!before) throw new HttpError(404, "Exercise not found");
       const r = await tx.exercisePlanItem.deleteMany({ where: { id: itemId, planId: id } });
       if (r.count !== 1) throw new HttpError(404, "Exercise not found");
-      await audit(tx, g.tenantId, g.session.userId, "DELETE", "ExercisePlanItem", itemId);
+      // Full snapshot in the audit row so a removed prescription line stays recoverable.
+      await tx.auditLog.create({ data: { tenantId: g.tenantId, actorId: g.session.userId, action: "DELETE", entity: "ExercisePlanItem", entityId: itemId, diff: { planId: id, removed: before } as object } });
     }, TX_OPTS);
     return NextResponse.json({ ok: true });
   } catch (e) {

@@ -4,7 +4,7 @@
  * and exercise plans with progress. Also switches the modules on for the demo clinics.
  *
  *   npx tsx scripts/seed-demo-suite.ts            # dry run
- *   npx tsx scripts/seed-demo-suite.ts --apply    # create
+ *   npx tsx scripts/seed-demo-suite.ts --apply --host=<part of the DB host>   # create (the host must match, a guard against the wrong database)
  *
  * Only creates rows (plus an additive change to each demo clinic's module list). Each section is skipped when that
  * clinic already has data of that kind, so running it twice changes nothing.
@@ -217,6 +217,8 @@ async function seedExercise(c: Ctx) {
 async function main() {
   const host = (process.env.DATABASE_URL ?? "").replace(/^.*@([^/:?]+).*$/, "$1");
   const apply = process.argv.includes("--apply");
+  const want = process.argv.find((a) => a.startsWith("--host="))?.slice(7);
+  if (apply && (!want || !host.includes(want))) throw new Error(`Refusing to write: pass --host=<part of the database host> matching ${host}`);
   console.log(`Target host: ${host}\nMode: ${apply ? "APPLY (additive)" : "dry run (no writes)"}`);
   for (const [email, mods] of Object.entries(PLAN)) {
     const admin = await prisma.user.findUnique({ where: { email }, select: { tenantId: true } });
