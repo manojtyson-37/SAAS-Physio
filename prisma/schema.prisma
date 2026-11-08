@@ -137,6 +137,22 @@ model Tenant {
   stockBatches  StockBatch[]
   stockMoves    StockMovement[]
   dispensations Dispensation[]
+  labSeq        Int                @default(0)
+  imagingSeq    Int                @default(0)
+  admissionSeq  Int                @default(0)
+
+  toothRecords       ToothRecord[]
+  treatmentPlans     TreatmentPlan[]
+  exerciseTemplates  ExerciseTemplate[]
+  exercisePlans      ExercisePlan[]
+  labTests           LabTest[]
+  labOrders          LabOrder[]
+  imagingTypes       ImagingStudyType[]
+  imagingOrders      ImagingOrder[]
+  wards              Ward[]
+  beds               Bed[]
+  admissions         Admission[]
+  dischargeSummaries DischargeSummary[]
 }
 
 model Branch {
@@ -169,18 +185,23 @@ model User {
   createdAt    DateTime  @default(now())
   deletedAt    DateTime?
 
-  appointments     Appointment[]      @relation("DoctorAppointments")
-  clinicalNotes    ClinicalNote[]
-  attendance       AttendanceRecord[]
-  ratingsGiven     Rating[]           @relation("RatingDoctor")
-  auditLogs        AuditLog[]
-  doctorVisits     Visit[]            @relation("DoctorVisits")
-  vitalsRecorded   Vitals[]
-  prescriptions    Prescription[]
-  invoicesCreated  Invoice[]          @relation("InvoiceCreatedBy")
-  paymentsReceived Payment[]          @relation("PaymentReceivedBy")
-  stockMoves       StockMovement[]
-  dispensations    Dispensation[]
+  appointments            Appointment[]      @relation("DoctorAppointments")
+  clinicalNotes           ClinicalNote[]
+  attendance              AttendanceRecord[]
+  ratingsGiven            Rating[]           @relation("RatingDoctor")
+  auditLogs               AuditLog[]
+  doctorVisits            Visit[]            @relation("DoctorVisits")
+  vitalsRecorded          Vitals[]
+  prescriptions           Prescription[]
+  invoicesCreated         Invoice[]          @relation("InvoiceCreatedBy")
+  paymentsReceived        Payment[]          @relation("PaymentReceivedBy")
+  stockMoves              StockMovement[]
+  dispensations           Dispensation[]
+  exercisePlansPrescribed ExercisePlan[]     @relation("ExerciseDoctor")
+  labOrdersMade           LabOrder[]         @relation("LabOrderedBy")
+  imagingOrdersMade       ImagingOrder[]     @relation("ImagingOrderedBy")
+  admissionsAsDoctor      Admission[]        @relation("AdmissionDoctor")
+  dischargesAsDoctor      DischargeSummary[] @relation("DischargeDoctor")
 }
 
 model Patient {
@@ -205,15 +226,22 @@ model Patient {
   createdAt      DateTime    @default(now())
   deletedAt      DateTime?
 
-  packages      Package[]
-  invoices      Invoice[]
-  appointments  Appointment[]
-  clinicalNotes ClinicalNote[]
-  attendance    AttendanceRecord[]
-  visits        Visit[]
-  vitals        Vitals[]
-  prescriptions Prescription[]
-  dispensations Dispensation[]
+  packages           Package[]
+  invoices           Invoice[]
+  appointments       Appointment[]
+  clinicalNotes      ClinicalNote[]
+  attendance         AttendanceRecord[]
+  visits             Visit[]
+  vitals             Vitals[]
+  prescriptions      Prescription[]
+  dispensations      Dispensation[]
+  toothRecords       ToothRecord[]
+  treatmentPlans     TreatmentPlan[]
+  exercisePlans      ExercisePlan[]
+  labOrders          LabOrder[]
+  imagingOrders      ImagingOrder[]
+  admissions         Admission[]
+  dischargeSummaries DischargeSummary[]
 
   @@unique([tenantId, uhid])
 }
@@ -660,4 +688,461 @@ model DispensationLine {
   lineTotal      Decimal      @db.Decimal(10, 2)
 
   @@index([dispensationId])
+}
+
+// ───────────────────────── Dental chart & treatment plans ─────────────────────────
+enum PlanStatus {
+  PROPOSED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PlanItemStatus {
+  PLANNED
+  DONE
+  CANCELLED
+}
+
+/// Chart history: one row per finding. The current state of a tooth is its newest non-deleted row.
+model ToothRecord {
+  id           String    @id @default(uuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  patientId    String
+  patient      Patient   @relation(fields: [patientId], references: [id])
+  /// FDI number: 11-18, 21-28, 31-38, 41-48 permanent; 51-55, 61-65, 71-75, 81-85 deciduous.
+  tooth        Int
+  /// Surfaces affected, e.g. "MOD" (mesial, occlusal, distal); null = whole tooth.
+  surfaces     String?
+  /// HEALTHY, CARIES, FILLED, CROWN, ROOT_CANAL, IMPLANT, FRACTURED, MISSING, EXTRACTED, OTHER
+  condition    String
+  notes        String?
+  recordedById String?
+  createdAt    DateTime  @default(now())
+  deletedAt    DateTime?
+
+  @@index([tenantId, patientId, tooth])
+}
+
+model TreatmentPlan {
+  id          String     @id @default(uuid())
+  tenantId    String
+  tenant      Tenant     @relation(fields: [tenantId], references: [id])
+  patientId   String
+  patient     Patient    @relation(fields: [patientId], references: [id])
+  title       String
+  status      PlanStatus @default(PROPOSED)
+  notes       String?
+  createdById String?
+  createdAt   DateTime   @default(now())
+  deletedAt   DateTime?
+
+  items TreatmentPlanItem[]
+
+  @@index([tenantId, patientId])
+}
+
+model TreatmentPlanItem {
+  id         String         @id @default(uuid())
+  planId     String
+  plan       TreatmentPlan  @relation(fields: [planId], references: [id], onDelete: Cascade)
+  tooth      Int?
+  procedure  String
+  price      Decimal        @db.Decimal(10, 2)
+  gstPercent Decimal        @default(0) @db.Decimal(5, 2)
+  status     PlanItemStatus @default(PLANNED)
+  doneAt     DateTime?
+  sortOrder  Int            @default(0)
+  /// Set when the item has been put on an invoice (plain id, no foreign key).
+  invoiceId  String?
+
+  @@index([planId])
+}
+
+// ───────────────────────── Exercise & rehab plans ─────────────────────────
+enum ExercisePlanStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model ExerciseTemplate {
+  id           String    @id @default(uuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  name         String
+  category     String    @default("General")
+  description  String?
+  sets         Int?
+  reps         Int?
+  holdSeconds  Int?
+  instructions String?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  deletedAt    DateTime?
+
+  @@unique([tenantId, name])
+}
+
+model ExercisePlan {
+  id        String             @id @default(uuid())
+  tenantId  String
+  tenant    Tenant             @relation(fields: [tenantId], references: [id])
+  patientId String
+  patient   Patient            @relation(fields: [patientId], references: [id])
+  doctorId  String?
+  doctor    User?              @relation("ExerciseDoctor", fields: [doctorId], references: [id], onDelete: SetNull)
+  title     String
+  status    ExercisePlanStatus @default(ACTIVE)
+  startDate DateTime           @default(now())
+  endDate   DateTime?
+  notes     String?
+  createdAt DateTime           @default(now())
+  deletedAt DateTime?
+
+  items    ExercisePlanItem[]
+  progress ExerciseProgress[]
+
+  @@index([tenantId, patientId])
+}
+
+model ExercisePlanItem {
+  id           String       @id @default(uuid())
+  planId       String
+  plan         ExercisePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  templateId   String?
+  name         String
+  sets         Int?
+  reps         Int?
+  holdSeconds  Int?
+  /// e.g. "twice daily"
+  frequency    String?
+  instructions String?
+  sortOrder    Int          @default(0)
+
+  @@index([planId])
+}
+
+model ExerciseProgress {
+  id               String       @id @default(uuid())
+  tenantId         String
+  planId           String
+  plan             ExercisePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  patientId        String
+  recordedAt       DateTime     @default(now())
+  /// 0 (none) to 10 (worst)
+  painScore        Int?
+  /// 0-100 share of the plan the patient completed
+  adherencePercent Int?
+  notes            String?
+  recordedById     String?
+
+  @@index([planId, recordedAt])
+}
+
+// ───────────────────────── Pathology lab ─────────────────────────
+enum LabOrderStatus {
+  ORDERED
+  COLLECTED
+  RESULTED
+  CANCELLED
+}
+
+model LabTest {
+  id         String    @id @default(uuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+  name       String
+  code       String?
+  category   String    @default("Biochemistry")
+  sampleType String?
+  unit       String?
+  refLow     Decimal?  @db.Decimal(12, 3)
+  refHigh    Decimal?  @db.Decimal(12, 3)
+  /// Free-text range for non-numeric tests, e.g. "Negative".
+  refText    String?
+  price      Decimal   @db.Decimal(10, 2)
+  gstPercent Decimal   @default(0) @db.Decimal(5, 2)
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  deletedAt  DateTime?
+
+  @@unique([tenantId, name])
+}
+
+model LabOrder {
+  id            String         @id @default(uuid())
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  /// Per-clinic running number from Tenant.labSeq, e.g. LAB-000042.
+  orderNo       String
+  patientId     String
+  patient       Patient        @relation(fields: [patientId], references: [id])
+  visitId       String?
+  orderedById   String?
+  orderedBy     User?          @relation("LabOrderedBy", fields: [orderedById], references: [id], onDelete: SetNull)
+  status        LabOrderStatus @default(ORDERED)
+  clinicalNotes String?
+  clientRef     String?
+  /// Set when billed (plain id, no foreign key).
+  invoiceId     String?
+  collectedAt   DateTime?
+  resultedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  deletedAt     DateTime?
+
+  items LabOrderItem[]
+
+  @@unique([tenantId, orderNo])
+  @@unique([tenantId, clientRef])
+  @@index([tenantId, status])
+  @@index([patientId])
+}
+
+model LabOrderItem {
+  id            String    @id @default(uuid())
+  orderId       String
+  order         LabOrder  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  testId        String?
+  /// Snapshots, so later catalogue edits never change an issued order or report.
+  testName      String
+  unit          String?
+  refLow        Decimal?  @db.Decimal(12, 3)
+  refHigh       Decimal?  @db.Decimal(12, 3)
+  refText       String?
+  price         Decimal   @db.Decimal(10, 2)
+  gstPercent    Decimal   @default(0) @db.Decimal(5, 2)
+  resultValue   String?
+  resultNumeric Decimal?  @db.Decimal(14, 4)
+  /// NORMAL, LOW, HIGH, CRITICAL (set by the app from the reference range, or by the technician)
+  flag          String?
+  remarks       String?
+  resultedAt    DateTime?
+  resultedById  String?
+  sortOrder     Int       @default(0)
+
+  @@index([orderId])
+}
+
+// ───────────────────────── Radiology & imaging ─────────────────────────
+enum ImagingStatus {
+  ORDERED
+  SCHEDULED
+  PERFORMED
+  REPORTED
+  CANCELLED
+}
+
+model ImagingStudyType {
+  id         String    @id @default(uuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+  /// XRAY, ULTRASOUND, CT, MRI, ECG, OTHER
+  modality   String
+  name       String
+  bodyPart   String?
+  price      Decimal   @db.Decimal(10, 2)
+  gstPercent Decimal   @default(0) @db.Decimal(5, 2)
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  deletedAt  DateTime?
+
+  @@unique([tenantId, name])
+}
+
+model ImagingOrder {
+  id            String        @id @default(uuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  /// Per-clinic running number from Tenant.imagingSeq, e.g. IMG-000007.
+  orderNo       String
+  patientId     String
+  patient       Patient       @relation(fields: [patientId], references: [id])
+  visitId       String?
+  studyTypeId   String?
+  /// Snapshots from the study type at order time.
+  studyName     String
+  modality      String
+  bodyPart      String?
+  price         Decimal       @db.Decimal(10, 2)
+  gstPercent    Decimal       @default(0) @db.Decimal(5, 2)
+  clinicalInfo  String?
+  status        ImagingStatus @default(ORDERED)
+  orderedById   String?
+  orderedBy     User?         @relation("ImagingOrderedBy", fields: [orderedById], references: [id], onDelete: SetNull)
+  scheduledAt   DateTime?
+  performedAt   DateTime?
+  performedById String?
+  findings      String?
+  impression    String?
+  reportedAt    DateTime?
+  reportedById  String?
+  clientRef     String?
+  invoiceId     String?
+  createdAt     DateTime      @default(now())
+  deletedAt     DateTime?
+
+  @@unique([tenantId, orderNo])
+  @@unique([tenantId, clientRef])
+  @@index([tenantId, status])
+  @@index([patientId])
+}
+
+// ───────────────────────── IPD, ICU & bed management ─────────────────────────
+enum WardType {
+  GENERAL
+  SEMI_PRIVATE
+  PRIVATE
+  ICU
+  NICU
+  HDU
+  OTHER
+}
+
+enum AdmissionStatus {
+  ADMITTED
+  DISCHARGED
+}
+
+model Ward {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  type      WardType @default(GENERAL)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  beds Bed[]
+
+  @@unique([tenantId, name])
+}
+
+model Bed {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  wardId    String
+  ward      Ward     @relation(fields: [wardId], references: [id])
+  label     String
+  dailyRate Decimal  @default(0) @db.Decimal(10, 2)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  admissions Admission[]
+  stays      BedStay[]
+
+  @@unique([wardId, label])
+  @@index([tenantId])
+}
+
+/// A bed holds at most one ADMITTED admission: enforced by a partial unique index added in the migration SQL.
+model Admission {
+  id                  String          @id @default(uuid())
+  tenantId            String
+  tenant              Tenant          @relation(fields: [tenantId], references: [id])
+  /// Per-clinic running number from Tenant.admissionSeq, e.g. ADM-000012.
+  admissionNo         String
+  patientId           String
+  patient             Patient         @relation(fields: [patientId], references: [id])
+  doctorId            String
+  doctor              User            @relation("AdmissionDoctor", fields: [doctorId], references: [id])
+  bedId               String?
+  bed                 Bed?            @relation(fields: [bedId], references: [id])
+  status              AdmissionStatus @default(ADMITTED)
+  admittedAt          DateTime        @default(now())
+  expectedDischargeAt DateTime?
+  dischargedAt        DateTime?
+  reason              String?
+  diagnosis           String?
+  notes               String?
+  clientRef           String?
+  /// Bed-charge invoice created at discharge (plain id, no foreign key).
+  invoiceId           String?
+  createdById         String?
+  createdAt           DateTime        @default(now())
+  deletedAt           DateTime?
+
+  stays     BedStay[]
+  chart     ChartEntry[]
+  discharge DischargeSummary?
+
+  @@unique([tenantId, admissionNo])
+  @@unique([tenantId, clientRef])
+  @@index([tenantId, status])
+  @@index([patientId])
+}
+
+/// Bed history for an admission (transfers close one stay and open the next). `rate` is a snapshot of the daily rate.
+model BedStay {
+  id          String    @id @default(uuid())
+  tenantId    String
+  admissionId String
+  admission   Admission @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+  bedId       String
+  bed         Bed       @relation(fields: [bedId], references: [id])
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  rate        Decimal   @db.Decimal(10, 2)
+
+  @@index([admissionId])
+}
+
+/// Nursing notes and ICU observations. All value fields are optional; a row may be just a note.
+model ChartEntry {
+  id           String    @id @default(uuid())
+  tenantId     String
+  admissionId  String
+  admission    Admission @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+  /// NURSING or ICU
+  kind         String    @default("NURSING")
+  recordedAt   DateTime  @default(now())
+  recordedById String?
+  systolic     Int?
+  diastolic    Int?
+  pulse        Int?
+  respRate     Int?
+  spo2         Int?
+  tempC        Decimal?  @db.Decimal(4, 1)
+  gcs          Int?
+  intakeMl     Int?
+  outputMl     Int?
+  notes        String?
+
+  @@index([admissionId, recordedAt])
+}
+
+// ───────────────────────── Discharge summary ─────────────────────────
+enum DischargeStatus {
+  DRAFT
+  FINAL
+}
+
+model DischargeSummary {
+  id                     String          @id @default(uuid())
+  tenantId               String
+  tenant                 Tenant          @relation(fields: [tenantId], references: [id])
+  admissionId            String          @unique
+  admission              Admission       @relation(fields: [admissionId], references: [id])
+  patientId              String
+  patient                Patient         @relation(fields: [patientId], references: [id])
+  doctorId               String
+  doctor                 User            @relation("DischargeDoctor", fields: [doctorId], references: [id])
+  status                 DischargeStatus @default(DRAFT)
+  diagnosis              String?
+  courseInHospital       String?
+  proceduresDone         String?
+  investigationsSummary  String?
+  conditionAtDischarge   String?
+  medicationsOnDischarge String?
+  adviceFollowUp         String?
+  followUpDate           DateTime?
+  finalizedAt            DateTime?
+  finalizedById          String?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  @@index([tenantId, status])
 }

@@ -13,7 +13,13 @@ export type ModuleKey =
   | "marketing"
   | "ratings"
   | "inventory"
-  | "pharmacy";
+  | "pharmacy"
+  | "dental_chart"
+  | "exercise_plans"
+  | "lab"
+  | "radiology"
+  | "ipd"
+  | "discharge";
 
 export type ModuleGroup = "Clinical" | "Front desk" | "Finance" | "People" | "Growth";
 
@@ -109,18 +115,62 @@ export const MODULES: ModuleDef[] = [
     pagePrefixes: ["/app/pharmacy"],
     requires: ["inventory"],
   },
+  {
+    key: "dental_chart",
+    label: "Dental chart & treatment plans",
+    description: "Tooth chart (FDI), findings per tooth and staged treatment plans with prices that can be billed.",
+    group: "Clinical",
+    nav: [{ label: "Treatment Plans", href: "/app/dental" }],
+    pagePrefixes: ["/app/dental"],
+  },
+  {
+    key: "exercise_plans",
+    label: "Exercise & rehab plans",
+    description: "Prescribe home exercise programmes from a library and track pain and adherence over time.",
+    group: "Clinical",
+    nav: [{ label: "Exercise Plans", href: "/app/exercise" }],
+    pagePrefixes: ["/app/exercise"],
+  },
+  {
+    key: "lab",
+    label: "Pathology lab",
+    description: "Test catalogue with reference ranges, orders, sample tracking, result entry with flags and printable reports.",
+    group: "Clinical",
+    nav: [{ label: "Lab", href: "/app/lab" }],
+    pagePrefixes: ["/app/lab"],
+  },
+  {
+    key: "radiology",
+    label: "Radiology & imaging",
+    description: "Imaging orders (X-ray, ultrasound, CT, MRI, ECG), scheduling and printable reports.",
+    group: "Clinical",
+    nav: [{ label: "Imaging", href: "/app/radiology" }],
+    pagePrefixes: ["/app/radiology"],
+  },
+  {
+    key: "ipd",
+    label: "IPD, ICU & bed management",
+    description: "Wards and beds, admissions, transfers, nursing notes and ICU charting, with bed charges billed at discharge.",
+    group: "Clinical",
+    nav: [{ label: "Admissions", href: "/app/ipd" }],
+    pagePrefixes: ["/app/ipd"],
+  },
+  {
+    key: "discharge",
+    label: "Discharge summary",
+    description: "Discharge summary prefilled from the admission, lab and imaging record, finalised and printable.",
+    group: "Clinical",
+    nav: [],
+    pagePrefixes: ["/app/discharge"],
+    requires: ["ipd"],
+  },
 ];
 
 /** Planned modules, shown on the settings page as "Coming soon" and not switchable yet. */
 export type PlannedModule = { key: string; label: string; description: string; group: ModuleGroup };
 
 export const PLANNED_MODULES: PlannedModule[] = [
-  { key: "dental_chart", label: "Dental chart & treatment plans", description: "Tooth chart, procedures per tooth and staged treatment plans.", group: "Clinical" },
-  { key: "exercise_plans", label: "Exercise & rehab plans", description: "Prescribe home exercise programmes and track progress.", group: "Clinical" },
-  { key: "lab", label: "Pathology lab", description: "Test orders, sample tracking and result reports.", group: "Clinical" },
-  { key: "radiology", label: "Radiology & imaging", description: "Imaging orders, reports and image storage.", group: "Clinical" },
-  { key: "ipd", label: "IPD, ICU & bed management", description: "Admissions, wards, beds, nursing notes and ICU charts.", group: "Clinical" },
-  { key: "discharge", label: "Discharge summary", description: "Generated discharge summaries from the admission record.", group: "Clinical" },
+  { key: "speech_to_rx", label: "Speech-to-Rx", description: "Dictate or hand-write a prescription on a tablet and have it structured for you.", group: "Clinical" },
 ];
 
 export const MODULE_KEYS = MODULES.map((m) => m.key);

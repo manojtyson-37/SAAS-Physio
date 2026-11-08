@@ -66,7 +66,7 @@ describe("resolve and selection", () => {
   it("validates admin selections", () => {
     expect(parseSelection(["billing", "opd", "billing"])).toEqual({ ok: true, modules: ["opd", "billing"] });
     expect(parseSelection([])).toEqual({ ok: true, modules: [] });
-    expect(parseSelection(["lab"]).ok).toBe(false);
+    expect(parseSelection(["speech_to_rx"]).ok).toBe(false);
     // pharmacy cannot work without stock, so choosing it brings inventory along
     expect(parseSelection(["pharmacy"])).toEqual({ ok: true, modules: ["inventory", "pharmacy"] });
     expect(parseSelection("opd").ok).toBe(false);
@@ -80,6 +80,7 @@ describe("navigation", () => {
   it("keeps the familiar order when everything is on", () => {
     expect(labels("STAFF", MODULE_KEYS)).toEqual([
       "Dashboard", "Patients", "OPD Queue", "Appointments", "Billing", "Inventory", "Pharmacy", "Staff & Doctors", "Attendance", "Marketing", "Doctor Ratings",
+      "Treatment Plans", "Exercise Plans", "Lab", "Imaging", "Admissions",
     ]);
   });
 
@@ -99,5 +100,12 @@ describe("navigation", () => {
     expect(allModules().size).toBe(MODULE_KEYS.length);
     expect(labels("SUPER_ADMIN")).toContain("Clinics");
     expect(labels("SUPER_ADMIN")).toContain("Doctor Ratings");
+  });
+});
+
+describe("clinical suite modules", () => {
+  it("discharge brings IPD along; every preset only uses known modules", () => {
+    expect(parseSelection(["discharge"])).toEqual({ ok: true, modules: ["ipd", "discharge"] });
+    for (const t of Object.values(CLINIC_TYPES)) expect(t.defaultModules.every(isModuleKey)).toBe(true);
   });
 });
