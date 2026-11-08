@@ -11,6 +11,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const parsed = messageSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
+  const recent = await prisma.supportMessage.count({ where: { authorId: g.session.userId, fromPlatform: false, createdAt: { gte: new Date(Date.now() - 3_600_000) } } });
+  if (recent >= 30) return NextResponse.json({ error: "You have sent many messages in the last hour. Please wait a little before sending more." }, { status: 429 });
   try {
     await prisma.$transaction(async (tx) => {
       const own = await tx.supportTicket.findFirst({ where: { id, tenantId: g.tenantId, ...(g.session.role === "CLINIC_ADMIN" ? {} : { createdById: g.session.userId }) }, select: { id: true } });

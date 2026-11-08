@@ -1,9 +1,9 @@
 import { SessionPayload } from "@/lib/auth";
 
-/** Returns a Prisma where-clause fragment scoping by tenant, or {} for Super Admin (platform-wide). */
+/** Returns the Prisma where-clause fragment that scopes a query to the user's own clinic. */
 export function tenantScope(session: SessionPayload) {
-  // The onboarding team must never read clinic data; requireSession already refuses it, this is the second lock.
-  if (session.role === "ONBOARDING" || !session.tenantId && session.role !== "SUPER_ADMIN") throw new Error("No clinic scope for this role");
-  if (session.role === "SUPER_ADMIN") return {};
-  return { tenantId: session.tenantId! };
+  // Only clinic users have a scope. The platform roles (owner and onboarding) never read clinic data; requireSession already
+  // refuses them on clinic routes, this is the second lock.
+  if (!session.tenantId) throw new Error("No clinic scope for this role");
+  return { tenantId: session.tenantId };
 }

@@ -21,7 +21,9 @@ export async function requireSession(allowedRoles?: Role[], opts: { allowWhenRea
   if (!session) {
     return { session: null, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
-  if (session.role === "ONBOARDING" && !allowedRoles?.includes("ONBOARDING")) {
+  // Platform roles have no clinic. Both are deny-by-default: a route must name the role to admit it, so neither can reach
+  // a clinic route that merely calls requireSession() (that is what keeps clinic data out of the owner's and onboarding's hands).
+  if ((session.role === "ONBOARDING" || session.role === "SUPER_ADMIN") && !allowedRoles?.includes(session.role)) {
     return { session: null, response: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
   }
   if (allowedRoles && !allowedRoles.includes(session.role)) {

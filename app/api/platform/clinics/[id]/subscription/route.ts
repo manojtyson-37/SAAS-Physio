@@ -41,6 +41,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const t = await tx.tenant.update({ where: { id }, data: res.patch, select: TENANT_SELECT });
       // Money received with an activation or renewal goes into the revenue ledger in the same transaction.
       if (input.action === "activate" && input.amount && input.amount > 0) {
+        // A double click or a retry must not count the same money twice (we hold the clinic row lock here).
+        const dup = await tx.subscriptionPayment.findFirst({ where: { tenantId: id, amount: input.amount.toFixed(2), createdAt: { gte: new Date(Date.now() - 2 * 60 * 1000) } }, select: { id: true } });
+        if (dup) throw new HttpError(409, "This payment was just recorded. Check the Overview before entering it again.");
         await tx.subscriptionPayment.create({
           data: { tenantId: id, amount: input.amount.toFixed(2), plan: input.plan, method: input.method || "Bank transfer", reference: input.reference || null, paidThrough: res.patch.paidThrough ?? null, recordedById: g.session.userId },
         });

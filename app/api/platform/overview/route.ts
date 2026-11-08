@@ -74,17 +74,28 @@ export async function GET() {
     byMonth: { month: string; amount: number }[]; recent: { id: string; clinic: string; amount: number; plan: string | null; at: Date }[];
   } = null;
   if (g.owner) {
-    const pays = await prisma.subscriptionPayment.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, amount: true, plan: true, createdAt: true, tenant: { select: { name: true } } } });
-    const sum = (xs: typeof pays) => Math.round(xs.reduce((s, p) => s + Number(p.amount), 0) * 100) / 100;
+    // Month buckets are India calendar months. The ledger is small, but totals come from SQL aggregates, not from loading every row.
+    const [y, m] = istDateKey(now).split("-").map(Number);
     const months: string[] = [];
-    for (let i = 5; i >= 0; i--) months.push(monthKey(new Date(now.getFullYear(), now.getMonth() - i, 15)));
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(Date.UTC(y, m - 1 - i, 1));
+      months.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
+    }
+    const since = new Date(`${months[0]}-01T00:00:00+05:30`);
+    const [all, window, recent] = await Promise.all([
+      prisma.subscriptionPayment.aggregate({ _sum: { amount: true }, _count: true }),
+      prisma.subscriptionPayment.findMany({ where: { createdAt: { gte: since } }, select: { amount: true, createdAt: true } }),
+      prisma.subscriptionPayment.findMany({ orderBy: { createdAt: "desc" }, take: 6, select: { id: true, amount: true, plan: true, createdAt: true, tenant: { select: { name: true } } } }),
+    ]);
+    const r2 = (n: number) => Math.round(n * 100) / 100;
+    const sumOf = (xs: { amount: unknown }[]) => r2(xs.reduce((s2, p) => s2 + Number(p.amount), 0));
     revenue = {
-      thisMonth: sum(pays.filter((p) => monthKey(p.createdAt) === monthKey(now))),
-      last30: sum(pays.filter((p) => p.createdAt >= d30)),
-      allTime: sum(pays),
-      payments: pays.length,
-      byMonth: months.map((m) => ({ month: m, amount: sum(pays.filter((p) => monthKey(p.createdAt) === m)) })),
-      recent: pays.slice(0, 6).map((p) => ({ id: p.id, clinic: p.tenant.name, amount: Number(p.amount), plan: p.plan, at: p.createdAt })),
+      thisMonth: sumOf(window.filter((p) => monthKey(p.createdAt) === months[5])),
+      last30: sumOf(window.filter((p) => p.createdAt >= d30)),
+      allTime: r2(Number(all._sum.amount ?? 0)),
+      payments: all._count,
+      byMonth: months.map((mo) => ({ month: mo, amount: sumOf(window.filter((p) => monthKey(p.createdAt) === mo)) })),
+      recent: recent.map((p) => ({ id: p.id, clinic: p.tenant.name, amount: Number(p.amount), plan: p.plan, at: p.createdAt })),
     };
   }
 
