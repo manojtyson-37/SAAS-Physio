@@ -11,9 +11,9 @@ const FRONT: ModuleKey[] = ["opd", "appointments", "billing", "pharmacy", "inven
  */
 export function getNavItems(role: string, modules?: ReadonlySet<ModuleKey>): NavItem[] {
   // The onboarding team only has the platform console.
-  if (role === "ONBOARDING") return [{ label: "Clinics", href: "/app/platform" }];
+  if (role === "ONBOARDING") return [{ label: "Clinics", href: "/app/platform" }, { label: "Support queries", href: "/app/platform/support" }];
   // The platform owner has no clinic: only the platform pages are useful (clinic data stays inside each clinic).
-  if (role === "SUPER_ADMIN") return [{ label: "Overview", href: "/app" }, { label: "Clinics", href: "/app/platform" }, { label: "Platform team", href: "/app/platform/team" }];
+  if (role === "SUPER_ADMIN") return [{ label: "Overview", href: "/app" }, { label: "Clinics", href: "/app/platform" }, { label: "Support queries", href: "/app/platform/support" }, { label: "Platform team", href: "/app/platform/team" }];
   const on = role === "SUPER_ADMIN" || !modules ? allModules() : modules;
   const isAdmin = role === "CLINIC_ADMIN" || role === "SUPER_ADMIN";
   const back = [...on].filter((k) => !FRONT.includes(k));
@@ -31,5 +31,6 @@ export function getNavItems(role: string, modules?: ReadonlySet<ModuleKey>): Nav
   items.push({ label: "Staff & Doctors", href: "/app/staff" });
   items.push(...moduleNav(on, isAdmin, back));
   if (role === "CLINIC_ADMIN") items.push({ label: "Settings", href: "/app/settings" });
+  items.push({ label: "Help & support", href: "/app/support" });
   return items;
 }

@@ -55,6 +55,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         specialties: type.specialties,
         appointmentMinutes: type.appointmentMinutes,
         isAdmin: session.role === "CLINIC_ADMIN" || session.role === "SUPER_ADMIN",
+        isPlatform: session.role === "SUPER_ADMIN",
       }}
     >
     <div className="flex min-h-screen bg-cream">

@@ -160,18 +160,20 @@ model Tenant {
   imagingSeq    Int                @default(0)
   admissionSeq  Int                @default(0)
 
-  toothRecords       ToothRecord[]
-  treatmentPlans     TreatmentPlan[]
-  exerciseTemplates  ExerciseTemplate[]
-  exercisePlans      ExercisePlan[]
-  labTests           LabTest[]
-  labOrders          LabOrder[]
-  imagingTypes       ImagingStudyType[]
-  imagingOrders      ImagingOrder[]
-  wards              Ward[]
-  beds               Bed[]
-  admissions         Admission[]
-  dischargeSummaries DischargeSummary[]
+  toothRecords         ToothRecord[]
+  treatmentPlans       TreatmentPlan[]
+  exerciseTemplates    ExerciseTemplate[]
+  exercisePlans        ExercisePlan[]
+  labTests             LabTest[]
+  labOrders            LabOrder[]
+  imagingTypes         ImagingStudyType[]
+  imagingOrders        ImagingOrder[]
+  wards                Ward[]
+  beds                 Bed[]
+  admissions           Admission[]
+  dischargeSummaries   DischargeSummary[]
+  subscriptionPayments SubscriptionPayment[]
+  supportTickets       SupportTicket[]
 }
 
 model Branch {
@@ -1190,4 +1192,70 @@ model DischargeSummary {
   updatedAt              DateTime        @updatedAt
 
   @@index([tenantId, status])
+}
+
+// ───────────────────────── Platform: revenue and support ─────────────────────────
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CLINIC
+  RESOLVED
+}
+
+/// Money ClinicOS received from a clinic for its subscription. Recorded by the platform owner; this is the revenue ledger.
+model SubscriptionPayment {
+  id           String    @id @default(uuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  /// Rupees, GST inclusive as received.
+  amount       Decimal   @db.Decimal(10, 2)
+  plan         String?
+  method       String    @default("Bank transfer")
+  reference    String?
+  paidThrough  DateTime?
+  note         String?
+  recordedById String?
+  createdAt    DateTime  @default(now())
+
+  @@index([tenantId])
+  @@index([createdAt])
+}
+
+/// A query from a clinic to the ClinicOS team.
+model SupportTicket {
+  id            String       @id @default(uuid())
+  /// Human-friendly running number across the platform (TKT-1042).
+  seq           Int          @unique @default(autoincrement())
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id])
+  createdById   String
+  subject       String
+  /// ISSUE, QUESTION, BILLING, FEATURE
+  category      String       @default("QUESTION")
+  urgent        Boolean      @default(false)
+  status        TicketStatus @default(OPEN)
+  assignedToId  String?
+  /// CLINIC or PLATFORM: who wrote last (decides who needs to act).
+  lastBy        String       @default("CLINIC")
+  lastMessageAt DateTime     @default(now())
+  resolvedAt    DateTime?
+  createdAt     DateTime     @default(now())
+
+  messages SupportMessage[]
+
+  @@index([tenantId])
+  @@index([status, lastMessageAt])
+}
+
+model SupportMessage {
+  id           String        @id @default(uuid())
+  ticketId     String
+  ticket       SupportTicket @relation(fields: [ticketId], references: [id])
+  authorId     String
+  authorName   String
+  fromPlatform Boolean       @default(false)
+  body         String
+  createdAt    DateTime      @default(now())
+
+  @@index([ticketId, createdAt])
 }

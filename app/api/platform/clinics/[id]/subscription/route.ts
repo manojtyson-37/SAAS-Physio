@@ -10,7 +10,7 @@ const body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("start_trial"), days: z.coerce.number().int().optional() }),
   z.object({ action: z.literal("extend_trial"), days: z.coerce.number().int() }),
   z.object({ action: z.literal("set_plan"), plan: z.string() }),
-  z.object({ action: z.literal("activate"), plan: z.string(), paidThrough: z.string().optional().nullable() }),
+  z.object({ action: z.literal("activate"), plan: z.string(), paidThrough: z.string().optional().nullable(), amount: z.coerce.number().min(0).max(10_000_000).optional(), method: z.string().trim().max(40).optional(), reference: z.string().trim().max(100).optional() }),
   z.object({ action: z.literal("suspend"), note: z.string().max(300).optional() }),
   z.object({ action: z.literal("reactivate"), to: z.enum(["TRIAL", "ACTIVE"]).optional(), note: z.string().max(300).optional() }),
   z.object({ action: z.literal("cancel"), note: z.string().max(300).optional() }),
@@ -39,6 +39,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const res = applyAction({ status: cur.subscriptionStatus, trialEndsAt: cur.trialEndsAt, paidThrough: cur.paidThrough, plan: cur.plan, trialStartedAt: cur.trialStartedAt }, action, g.owner);
       if (!res.ok) throw new HttpError(g.owner ? 409 : 403, res.error);
       const t = await tx.tenant.update({ where: { id }, data: res.patch, select: TENANT_SELECT });
+      // Money received with an activation or renewal goes into the revenue ledger in the same transaction.
+      if (input.action === "activate" && input.amount && input.amount > 0) {
+        await tx.subscriptionPayment.create({
+          data: { tenantId: id, amount: input.amount.toFixed(2), plan: input.plan, method: input.method || "Bank transfer", reference: input.reference || null, paidThrough: res.patch.paidThrough ?? null, recordedById: g.session.userId },
+        });
+      }
       await tx.auditLog.create({ data: { tenantId: id, actorId: g.session.userId, action: input.action.toUpperCase(), entity: "Subscription", entityId: id, diff: { from: cur.subscriptionStatus, patch: JSON.parse(JSON.stringify(res.patch)) } } });
       return t;
     });

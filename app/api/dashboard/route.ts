@@ -18,6 +18,8 @@ const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((s, x) => s + x,
 export async function GET() {
   const { session, response } = await requireSession();
   if (!session) return response!;
+  // The platform owner has no clinic here: platform numbers live in /api/platform/overview, never clinic patient data.
+  if (session.role === "SUPER_ADMIN") return NextResponse.json({ error: "Use the platform overview" }, { status: 403 });
 
   const scope = tenantScope(session);
   const modules = await getEnabledModules(session);

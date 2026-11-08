@@ -5,6 +5,7 @@ import Link from "next/link";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { Card, StatCard } from "@/components/Card";
 import { useClinic } from "@/components/ClinicContext";
+import PlatformOverview from "@/components/platform/PlatformOverview";
 
 type DashboardData = {
   modules: string[];
@@ -65,12 +66,14 @@ export default function DashboardPage() {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    if (clinic.isPlatform) return;
     fetch("/api/dashboard")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then(setData)
       .catch(() => setFailed(true));
-  }, []);
+  }, [clinic.isPlatform]);
 
+  if (clinic.isPlatform) return <PlatformOverview />;
   if (failed) return <p className="text-sm text-clay">Could not load the dashboard. Refresh to try again.</p>;
   if (!data) return <p className="text-sm text-ink/50">Loading dashboard…</p>;
 

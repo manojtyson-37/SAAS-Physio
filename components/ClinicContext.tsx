@@ -11,6 +11,8 @@ export type ClinicInfo = {
   appointmentMinutes: number;
   /** True for the clinic admin (and the platform admin): the only roles allowed to remove or revoke records. */
   isAdmin: boolean;
+  /** True for the platform owner: the Overview page shows ClinicOS-level numbers, never clinic data. */
+  isPlatform: boolean;
 };
 
 const FALLBACK: ClinicInfo = {
@@ -21,6 +23,7 @@ const FALLBACK: ClinicInfo = {
   specialties: [],
   appointmentMinutes: 30,
   isAdmin: false,
+  isPlatform: false,
 };
 
 const Ctx = createContext<ClinicInfo>(FALLBACK);

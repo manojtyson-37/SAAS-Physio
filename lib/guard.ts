@@ -16,7 +16,7 @@ export const PLATFORM_ROLES: Role[] = ["SUPER_ADMIN", "ONBOARDING"];
  *  - suspended clinic                        -> 403 subscription_suspended
  *  - expired/cancelled clinic, write request -> 402 subscription_expired (reads still work)
  */
-export async function requireSession(allowedRoles?: Role[]) {
+export async function requireSession(allowedRoles?: Role[], opts: { allowWhenReadOnly?: boolean } = {}) {
   const session = await getSession();
   if (!session) {
     return { session: null, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
@@ -55,7 +55,8 @@ export async function requireSession(allowedRoles?: Role[]) {
     if (view.access === "BLOCKED") {
       return { session: null, response: NextResponse.json({ error: "subscription_suspended", message: "This clinic's account is suspended. Contact ClinicOS support." }, { status: 403 }) };
     }
-    if (!methodAllowed(view.access, method)) {
+    // `allowWhenReadOnly` is for routes a clinic must still reach when its subscription has ended (contacting support).
+    if (!(opts.allowWhenReadOnly && view.access === "READ_ONLY") && !methodAllowed(view.access, method)) {
       return { session: null, response: NextResponse.json({ error: "subscription_expired", message: "Your subscription has ended, so records are read-only. Contact ClinicOS to renew." }, { status: 402 }) };
     }
   }

@@ -81,6 +81,9 @@ function SubscriptionCard({ id, c, owner, onDone }: { id: string; c: Clinic; own
   const [plan, setPlan] = useState(s.plan ?? "STARTER");
   const [paidThrough, setPaidThrough] = useState("");
   const [note, setNote] = useState("");
+  const [amount, setAmount] = useState("");
+  const [method, setMethod] = useState("Bank transfer");
+  const [reference, setReference] = useState("");
 
   async function run(body: Record<string, unknown>, confirmText?: string) {
     if (confirmText && !window.confirm(confirmText)) return;
@@ -119,7 +122,10 @@ function SubscriptionCard({ id, c, owner, onDone }: { id: string; c: Clinic; own
         {owner && (
           <>
             <label className="flex flex-col gap-1 text-xs">Paid through<input type="date" className={input} value={paidThrough} onChange={(e) => setPaidThrough(e.target.value)} /></label>
-            <button disabled={busy} className={btnPrimary} onClick={() => run({ action: "activate", plan, ...(paidThrough ? { paidThrough } : {}) }, `Activate ${plan}${paidThrough ? ` until ${paidThrough}` : " with no end date"}?`)}>Activate</button>
+            <label className="flex flex-col gap-1 text-xs">Amount received (₹)<input type="number" min={0} step="0.01" className={`${input} w-32`} value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
+            <label className="flex flex-col gap-1 text-xs">Payment method<select className={input} value={method} onChange={(e) => setMethod(e.target.value)}>{["Bank transfer", "UPI", "Cash", "Card", "Cheque"].map((m) => <option key={m}>{m}</option>)}</select></label>
+            <label className="flex flex-col gap-1 text-xs">Reference<input maxLength={100} className={`${input} w-40`} value={reference} onChange={(e) => setReference(e.target.value)} /></label>
+            <button disabled={busy} className={btnPrimary} onClick={() => run({ action: "activate", plan, ...(paidThrough ? { paidThrough } : {}), ...(amount ? { amount: Number(amount), method, ...(reference.trim() ? { reference: reference.trim() } : {}) } : {}) }, `Activate ${plan}${paidThrough ? ` until ${paidThrough}` : " with no end date"}${amount ? ` and record a payment of ₹${amount}` : ""}?`)}>Activate</button>
           </>
         )}
       </div>

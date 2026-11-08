@@ -80,13 +80,13 @@ describe("navigation", () => {
   it("keeps the familiar order when everything is on", () => {
     expect(labels("STAFF", MODULE_KEYS)).toEqual([
       "Dashboard", "Patients", "OPD Queue", "Appointments", "Billing", "Inventory", "Pharmacy", "Staff & Doctors", "Attendance", "Marketing", "Doctor Ratings",
-      "Treatment Plans", "Exercise Plans", "Lab", "Imaging", "Admissions",
+      "Treatment Plans", "Exercise Plans", "Lab", "Imaging", "Admissions", "Help & support",
     ]);
   });
 
   it("hides disabled modules and always keeps core areas", () => {
-    expect(labels("STAFF", ["opd", "billing"])).toEqual(["Dashboard", "Patients", "OPD Queue", "Billing", "Staff & Doctors"]);
-    expect(labels("STAFF", [])).toEqual(["Dashboard", "Patients", "Staff & Doctors"]);
+    expect(labels("STAFF", ["opd", "billing"])).toEqual(["Dashboard", "Patients", "OPD Queue", "Billing", "Staff & Doctors", "Help & support"]);
+    expect(labels("STAFF", [])).toEqual(["Dashboard", "Patients", "Staff & Doctors", "Help & support"]);
   });
 
   it("shows Price List and Settings only to the clinic admin", () => {
@@ -99,8 +99,8 @@ describe("navigation", () => {
   it("super admin sees every module without a clinic", () => {
     expect(allModules().size).toBe(MODULE_KEYS.length);
     expect(labels("SUPER_ADMIN")).toContain("Clinics");
-    expect(labels("SUPER_ADMIN")).toEqual(["Overview", "Clinics", "Platform team"]);
-    expect(labels("ONBOARDING")).toEqual(["Clinics"]);
+    expect(labels("SUPER_ADMIN")).toEqual(["Overview", "Clinics", "Support queries", "Platform team"]);
+    expect(labels("ONBOARDING")).toEqual(["Clinics", "Support queries"]);
   });
 });
 

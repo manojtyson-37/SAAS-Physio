@@ -6,8 +6,8 @@ type Ok = { session: SessionPayload; tenantId: string; response: null };
 type Denied = { session: null; tenantId: null; response: NextResponse };
 
 /** Like requireSession, but also requires a tenant (SUPER_ADMIN has none and cannot run clinical workflows). */
-export async function requireTenantSession(roles?: Role[]): Promise<Ok | Denied> {
-  const { session, response } = await requireSession(roles);
+export async function requireTenantSession(roles?: Role[], opts: { allowWhenReadOnly?: boolean } = {}): Promise<Ok | Denied> {
+  const { session, response } = await requireSession(roles, opts);
   if (!session) return { session: null, tenantId: null, response: response! };
   if (!session.tenantId) {
     return {
