@@ -4,12 +4,17 @@ import { useClinic } from "@/components/ClinicContext";
 import { useEffect, useState, useCallback, use } from "react";
 import Link from "next/link";
 import { Card } from "@/components/Card";
+import { PatientDentalPanel } from "@/components/dental/PatientDentalPanel";
+import { PatientExercisePanel } from "@/components/exercise/PatientExercisePanel";
+import PatientLabPanel from "@/components/lab/PatientLabPanel";
+import PatientImagingPanel from "@/components/radiology/PatientImagingPanel";
+import PatientAdmissionsPanel from "@/components/ipd/PatientAdmissionsPanel";
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
-type Tab = "overview" | "packages" | "notes" | "invoices" | "appointments";
+type Tab = "overview" | "packages" | "notes" | "invoices" | "appointments" | "dental" | "exercise" | "lab" | "imaging" | "admissions";
 
 export default function PatientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -70,6 +75,11 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
     { key: "notes", label: `Clinical Notes (${patient.clinicalNotes.length})` },
     ...(has("billing") ? [{ key: "invoices" as Tab, label: `Invoices (${patient.invoices.length})` }] : []),
     ...(has("appointments") ? [{ key: "appointments" as Tab, label: `Appointments (${patient.appointments.length})` }] : []),
+    ...(has("dental_chart") ? [{ key: "dental" as Tab, label: "Dental" }] : []),
+    ...(has("exercise_plans") ? [{ key: "exercise" as Tab, label: "Exercise plans" }] : []),
+    ...(has("lab") ? [{ key: "lab" as Tab, label: "Lab" }] : []),
+    ...(has("radiology") ? [{ key: "imaging" as Tab, label: "Imaging" }] : []),
+    ...(has("ipd") ? [{ key: "admissions" as Tab, label: "Admissions" }] : []),
   ];
 
   return (
@@ -355,6 +365,12 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
           </table>
         </Card>
       )}
+
+      {tab === "dental" && has("dental_chart") && <PatientDentalPanel patientId={patient.id} />}
+      {tab === "exercise" && has("exercise_plans") && <PatientExercisePanel patientId={patient.id} />}
+      {tab === "lab" && has("lab") && <PatientLabPanel patientId={patient.id} />}
+      {tab === "imaging" && has("radiology") && <PatientImagingPanel patientId={patient.id} />}
+      {tab === "admissions" && has("ipd") && <PatientAdmissionsPanel patientId={patient.id} />}
     </div>
   );
 }

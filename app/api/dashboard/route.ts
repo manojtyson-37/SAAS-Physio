@@ -219,5 +219,41 @@ export async function GET() {
     out.pharmacy = { pendingRx, dispensedToday: today._count, soldToday: Number(today._sum.total ?? 0) };
   }
 
+  if (scope.tenantId) {
+    const tenantId = scope.tenantId;
+    if (on("lab")) {
+      const [pending, resultedToday] = await Promise.all([
+        prisma.labOrder.count({ where: { tenantId, deletedAt: null, status: { in: ["ORDERED", "COLLECTED"] } } }),
+        prisma.labOrder.count({ where: { tenantId, deletedAt: null, status: "RESULTED", resultedAt: { gte: today0, lt: today1 } } }),
+      ]);
+      out.lab = { pending, resultedToday };
+    }
+    if (on("radiology")) {
+      const [pending, reportedToday] = await Promise.all([
+        prisma.imagingOrder.count({ where: { tenantId, deletedAt: null, status: { in: ["ORDERED", "SCHEDULED", "PERFORMED"] } } }),
+        prisma.imagingOrder.count({ where: { tenantId, deletedAt: null, status: "REPORTED", reportedAt: { gte: today0, lt: today1 } } }),
+      ]);
+      out.radiology = { pending, reportedToday };
+    }
+    if (on("ipd")) {
+      const [totalBeds, admitted, icu, dischargedToday, draftSummaries] = await Promise.all([
+        prisma.bed.count({ where: { tenantId, isActive: true } }),
+        prisma.admission.count({ where: { tenantId, deletedAt: null, status: "ADMITTED" } }),
+        prisma.admission.count({ where: { tenantId, deletedAt: null, status: "ADMITTED", bed: { ward: { type: { in: ["ICU", "NICU", "HDU"] } } } } }),
+        prisma.admission.count({ where: { tenantId, deletedAt: null, status: "DISCHARGED", dischargedAt: { gte: today0, lt: today1 } } }),
+        on("discharge") ? prisma.dischargeSummary.count({ where: { tenantId, status: "DRAFT" } }) : Promise.resolve(null),
+      ]);
+      out.ipd = { totalBeds, admitted, icuOccupied: icu, dischargedToday, draftSummaries };
+    }
+    if (on("dental_chart")) {
+      out.dental = {
+        activePlans: await prisma.treatmentPlan.count({ where: { tenantId, deletedAt: null, status: { in: ["PROPOSED", "ACCEPTED", "IN_PROGRESS"] } } }),
+      };
+    }
+    if (on("exercise_plans")) {
+      out.exercise = { activePlans: await prisma.exercisePlan.count({ where: { tenantId, deletedAt: null, status: "ACTIVE" } }) };
+    }
+  }
+
   return NextResponse.json(out);
 }

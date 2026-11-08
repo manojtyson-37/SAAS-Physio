@@ -34,6 +34,11 @@ type DashboardData = {
   packages?: { active: number; runningLow: number };
   stock?: { items: number; lowStock: number; outOfStock: number; expiringBatches: number; expiredBatches: number };
   pharmacy?: { pendingRx: number; dispensedToday: number; soldToday: number };
+  lab?: { pending: number; resultedToday: number };
+  radiology?: { pending: number; reportedToday: number };
+  ipd?: { totalBeds: number; admitted: number; icuOccupied: number; dischargedToday: number; draftSummaries: number | null };
+  dental?: { activePlans: number };
+  exercise?: { activePlans: number };
   leadCounts?: Record<string, number>;
   doctors: { id: string; name: string; specialty: string | null; patients: number; revenue: number | null }[];
   revenueByBranch?: { name: string; revenue: number }[];
@@ -119,6 +124,17 @@ export default function DashboardPage() {
             sub={`${data.stock.lowStock} low · ${data.stock.outOfStock} out · ${data.stock.expiringBatches} expiring · ${data.stock.expiredBatches} expired`}
           />
         )}
+        {data.ipd && (
+          <StatCard
+            label="Beds occupied"
+            value={`${data.ipd.admitted}/${data.ipd.totalBeds}`}
+            sub={`${data.ipd.icuOccupied} in ICU · ${data.ipd.dischargedToday} discharged today${data.ipd.draftSummaries ? ` · ${data.ipd.draftSummaries} summaries to finalise` : ""}`}
+          />
+        )}
+        {data.lab && <StatCard label="Lab orders pending" value={String(data.lab.pending)} sub={`${data.lab.resultedToday} resulted today`} />}
+        {data.radiology && <StatCard label="Imaging pending" value={String(data.radiology.pending)} sub={`${data.radiology.reportedToday} reported today`} />}
+        {data.dental && <StatCard label="Open treatment plans" value={String(data.dental.activePlans)} sub="proposed, accepted or in progress" />}
+        {data.exercise && <StatCard label="Active exercise plans" value={String(data.exercise.activePlans)} sub="patients on a home programme" />}
         {packages && (
           <StatCard
             label={`Active ${clinic.terms.packages.toLowerCase()}`}
