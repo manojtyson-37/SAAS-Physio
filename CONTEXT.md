@@ -302,3 +302,19 @@ Plan ("clinic core first"): Foundations (UHID, Visit, Vitals, Rx) → OPD queue/
 - Rules: (1) every `app/app/**` route group keeps a `loading.tsx` skeleton so a click responds instantly and Next can prefetch the shell; (2) one DB read per request for user+clinic (layout does it in one query; `requireSession` parks `enabledModules` in `lib/modules/sessionModules.ts` for `moduleGate`) - never add a second read of the same row; (3) prefer data in the first response over a client `useEffect` fetch waterfall; (4) run `scripts/perf-check.sh <url>` before and after shipping UI work (budget 700 ms median per call from the dev machine).
 - Trade-off: because `loading.tsx` streams first, a module-off page returns HTTP 200 with the 404 UI (`noindex`); the data APIs still return 403. Tests must check the body, not the status.
 - The structural fix is moving the database (and function region) near users (e.g. Neon Singapore + `sin1`); that is a prod data move and needs explicit approval.
+
+## Tenant resolution on writes (added 2026-11-13, after a cross-tenant write was found in a readiness audit)
+`requireSession` proves **who** is calling. It says nothing about whether an id in the URL or the request body
+belongs to that caller's clinic. Four routes had made that mistake: `patients/[id]/notes` (wrote a `ClinicalNote`
+into another clinic's medical record), `appointments` POST (wrote an appointment against a foreign patient/doctor
+*and* returned the foreign patient row in the response), `patients/[id]/packages` POST, and `attendance` POST.
+A patient id is not a secret — it sits in URLs, invoices and screenshots — so the UUID is a speed bump, not a control.
+
+Rule: **any route that writes a row hanging off an id from the request must first resolve that id inside
+`session.tenantId` and return 404 when it does not match.** Use the where-clauses in
+[`lib/tenant/guards.ts`](lib/tenant/guards.ts) (`patientInTenant`, `activeDoctorInTenant`, `activeUserInTenant`)
+rather than retyping the filter per route; `lib/tenant/guards.test.ts` filters a two-tenant fixture through each one.
+Modules whose rows carry no `tenantId` of their own — `ClinicalNote`, `DispensationLine`, `ExercisePlanItem`,
+`InvoiceLineItem`, `LabOrderItem`, `Payment`, `PrescriptionItem`, `SupportMessage`, `TreatmentPlanItem` — depend
+entirely on this, because no downstream `tenantScope` can catch a wrong parent. Writing a denormalised `tenantId`
+onto `ClinicalNote` (as the newer models carry) is the structural fix and needs a migration against the live DB.

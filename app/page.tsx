@@ -134,8 +134,8 @@ export default function LandingPage() {
           </div>
           <dl className="mt-12 grid grid-cols-2 gap-6 sm:grid-cols-4">
             {[
-              ["5", "Clinic types"],
-              ["7", "Modules to switch on"],
+              [String(CLINIC_TYPE_KEYS.length), "Clinic types"],
+              [String(MODULES.length), "Modules to switch on"],
               ["∞", "Branches & clinics"],
               ["GST", "Invoices & day-end report"],
             ].map(([value, label]) => (
@@ -220,7 +220,8 @@ export default function LandingPage() {
           })}
         </div>
         <p className="mt-6 text-xs text-ink/50">
-          {MODULES.length} modules today. Dental charts, pharmacy, inventory, lab, radiology and IPD are on the way.
+          {MODULES.length} modules today, including dental charts, pharmacy, inventory, lab, radiology and IPD. We switch
+          on only the ones your clinic uses.
         </p>
       </section>
 

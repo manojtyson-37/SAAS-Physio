@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/guard";
 import { tenantScope } from "@/lib/scope";
+import { activeDoctorInTenant, patientInTenant } from "@/lib/tenant/guards";
 import { z } from "zod";
 
 export async function GET() {
@@ -39,11 +40,21 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
 
+  // Both ids come from the request. Without these two lookups the appointment is written
+  // into this clinic but points at another clinic's patient and doctor — and the response
+  // below includes the patient row, so it hands that record back to the caller.
+  const [patient, doctor] = await Promise.all([
+    prisma.patient.findFirst({ where: patientInTenant(session.tenantId!, parsed.data.patientId), select: { id: true } }),
+    prisma.user.findFirst({ where: activeDoctorInTenant(session.tenantId!, parsed.data.doctorId), select: { id: true } }),
+  ]);
+  if (!patient) return NextResponse.json({ error: "Patient not found" }, { status: 404 });
+  if (!doctor) return NextResponse.json({ error: "Doctor not found" }, { status: 404 });
+
   const appt = await prisma.appointment.create({
     data: {
       tenantId: session.tenantId!,
-      patientId: parsed.data.patientId,
-      doctorId: parsed.data.doctorId,
+      patientId: patient.id,
+      doctorId: doctor.id,
       datetime: new Date(parsed.data.datetime),
       durationMin: parsed.data.durationMin,
       notes: parsed.data.notes,
